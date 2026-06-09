@@ -18,7 +18,7 @@ export default function SummaryStats({ data }) {
       <div className="w-48 h-48 flex-shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Pie data={stats} cx="50%" cy="50%" innerRadius={50} outerRadius={76} paddingAngle={3} dataKey="value">
+            <Pie data={stats} cx="50%" cy="50%" innerRadius={50} outerRadius={76} dataKey="value">
               {stats.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
             </Pie>
             <Tooltip formatter={(v) => [`${v} (${total ? Math.round(v / total * 100) : 0}%)`, '']} />

@@ -11,6 +11,9 @@ dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 4000
 
+// Required for Railway load balancer (proxy) so express-rate-limit works
+app.set('trust proxy', 1)
+
 const allowedOrigins = [
     process.env.FRONTEND_URL,
     'http://localhost:5173',

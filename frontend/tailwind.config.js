@@ -7,7 +7,7 @@ export default {
         sans: ['Inter', 'sans-serif'],
       },
       colors: {
-        brand: { DEFAULT: '#4F46E5', light: '#818CF8', dark: '#3730A3' },
+        brand: { DEFAULT: '#1A4A7A', light: '#3A7AB8', dark: '#0F2D4E' },
         success: '#10B981',
         warning: '#F59E0B',
         danger: '#EF4444',

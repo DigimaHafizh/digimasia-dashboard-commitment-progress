@@ -4,12 +4,14 @@ import { authMiddleware } from '../middleware/auth.js'
 
 const router = Router()
 
-// Public dashboard — no challenges field
+// Public dashboard — no challenges field, no admin accounts
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT id, name, heart_value, initial_commitment, measurable_impact, status, review_reason, is_admin
-      FROM users ORDER BY name ASC
+      SELECT id, name, heart_value, initial_commitment, measurable_impact, status, review_reason
+      FROM users
+      WHERE is_admin = false
+      ORDER BY name ASC
     `)
     res.json(rows)
   } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }

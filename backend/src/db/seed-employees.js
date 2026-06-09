@@ -41,7 +41,7 @@ const employees = [
     { name: 'Muhammad Hafizh Abdillah', heart_value: 'Software Engineering & QA' },
     { name: 'Fahmi Fikri Kurniawan', heart_value: 'Customer Support' },
     { name: 'Putra Indra Tri Cahya', heart_value: 'Customer Support' },
-    { name: 'Cherly Diansacharina Tri W.', heart_value: 'Customer Support' },
+    { name: 'Cherly Diansacharina Tri Wahyuningsuara', heart_value: 'Customer Support' },
     { name: 'Resfi Anggraeni', heart_value: 'General Affairs' },
     { name: 'Mediani Prima Ismary', heart_value: 'General Affairs' },
     { name: 'Hanafiah Yunan Putri', heart_value: 'Content Design' },

@@ -8,6 +8,7 @@ export default function LoginPage() {
   const [pin, setPin] = useState(['', '', '', ''])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPin, setShowPin] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
 
@@ -17,6 +18,23 @@ export default function LoginPage() {
     next[idx] = val
     setPin(next)
     if (val && idx < 3) document.getElementById(`pin-${idx + 1}`)?.focus()
+  }
+
+  const handleKeyDown = (e, idx) => {
+    if (e.key === 'Backspace') {
+      e.preventDefault()
+      const next = [...pin]
+      if (next[idx]) {
+        // Clear current box
+        next[idx] = ''
+        setPin(next)
+      } else if (idx > 0) {
+        // Move to previous box and clear it
+        next[idx - 1] = ''
+        setPin(next)
+        document.getElementById(`pin-${idx - 1}`)?.focus()
+      }
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -44,16 +62,28 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit}>
           <p className="text-sm font-semibold text-gray-600 mb-3">Enter your 4-digit PIN</p>
-          <div className="flex gap-3 justify-center mb-6">
+          <div className="flex gap-3 justify-center mb-3">
             {pin.map((d, i) => (
               <input
                 key={i} id={`pin-${i}`}
-                type="password" inputMode="numeric" maxLength={1} value={d}
+                type={showPin ? 'text' : 'password'} inputMode="numeric" maxLength={1} value={d}
                 onChange={(e) => handleChange(e.target.value, i)}
+                onKeyDown={(e) => handleKeyDown(e, i)}
                 className="w-14 h-14 text-center text-2xl font-bold border-2 border-indigo-200 bg-white rounded-xl focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 transition shadow-sm"
               />
             ))}
           </div>
+          <button
+            type="button"
+            onClick={() => setShowPin(!showPin)}
+            className="text-xs text-gray-400 hover:text-brand transition mb-4 flex items-center gap-1 mx-auto"
+          >
+            {showPin ? (
+              <><svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg> Hide PIN</>
+            ) : (
+              <><svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg> Show PIN</>
+            )}
+          </button>
           {error && <p className="text-danger text-sm mb-4">{error}</p>}
           <button
             type="submit" disabled={loading}
@@ -66,4 +96,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

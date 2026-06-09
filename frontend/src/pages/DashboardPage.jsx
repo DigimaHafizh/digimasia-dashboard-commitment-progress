@@ -8,6 +8,7 @@ import ReviewTooltip from '../components/ReviewTooltip'
 import NotificationBell from '../components/NotificationBell'
 import AdminUpdateModal from '../components/AdminUpdateModal'
 import UserGuideline from '../components/UserGuideline'
+import treeImg from '../asset/Pohon 10.png'
 
 const STATUSES = ['All', 'Not Started', 'In Progress', 'Achieved']
 
@@ -51,7 +52,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 flex-shrink-0">
-              <img src="/src/asset/Pohon 10.png" alt="Tree" className="w-full h-full object-contain drop-shadow-md" />
+              <img src={treeImg} alt="Tree" className="w-full h-full object-contain drop-shadow-md" />
             </div>
             <div>
               <h1 className="text-white font-extrabold text-lg leading-tight drop-shadow">Commitment Progress Dashboard</h1>

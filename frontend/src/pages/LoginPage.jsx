@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
+import treeImg from '../asset/Pohon 10.png'
 
 export default function LoginPage() {
   const [pin, setPin] = useState(['', '', '', ''])
@@ -36,7 +37,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-dark via-brand to-brand-light p-4">
       <div className="bg-gradient-to-b from-indigo-50 to-white rounded-2xl shadow-2xl border border-white/60 p-10 w-full max-w-sm text-center">
         <div className="mb-4 flex justify-center">
-          <img src="/src/asset/Pohon 10.png" alt="Tree" className="w-16 h-16 object-contain drop-shadow-md" />
+          <img src={treeImg} alt="Tree" className="w-16 h-16 object-contain drop-shadow-md" />
         </div>
         <h1 className="text-2xl font-bold text-brand-dark mb-1">Commitment Progress</h1>
         <p className="text-sm text-gray-500 mb-8">X-Traordinary · Grow With Heart</p>

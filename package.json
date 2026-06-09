@@ -1,0 +1,8 @@
+{
+    "name": "commitment-dashboard-root",
+    "private": true,
+    "scripts": {
+        "start": "cd backend && npm install && npm start",
+        "build": "cd backend && npm install"
+    }
+}

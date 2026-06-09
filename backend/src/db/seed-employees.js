@@ -37,6 +37,7 @@ const employees = [
     { name: 'Christover Ramanda Moa', heart_value: 'Software Engineering & QA' },
     { name: 'Muhammad Rizky Husain', heart_value: 'Software Engineering & QA' },
     { name: 'Wahyu Candra Indhiarta', heart_value: 'Software Engineering & QA' },
+    { name: 'Candra Prasetyo', heart_value: 'Software Engineering & QA' },
     { name: 'Muhammad Hafizh Abdillah', heart_value: 'Software Engineering & QA' },
     { name: 'Fahmi Fikri Kurniawan', heart_value: 'Customer Support' },
     { name: 'Putra Indra Tri Cahya', heart_value: 'Customer Support' },

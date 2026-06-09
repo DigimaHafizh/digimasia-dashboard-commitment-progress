@@ -8,7 +8,7 @@ const router = Router()
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT id, name, heart_value, initial_commitment, measurable_impact, status, review_reason
+      SELECT id, name, heart_value, initial_commitment, measurable_impact, status, review_reason, is_admin
       FROM users ORDER BY name ASC
     `)
     res.json(rows)

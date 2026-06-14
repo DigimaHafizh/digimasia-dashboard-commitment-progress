@@ -32,6 +32,7 @@ app.use(cors({
     credentials: true
 }))
 app.use(express.json())
+app.use('/api/uploads', express.static('uploads'))
 
 // Rate-limit login endpoint
 app.use('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: 'Too many login attempts. Please wait.' }))

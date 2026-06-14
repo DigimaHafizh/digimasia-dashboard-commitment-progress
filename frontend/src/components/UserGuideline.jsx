@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import warningImg from '../asset/warning.png'
 
 const STEPS = [
     {
@@ -14,22 +15,28 @@ const STEPS = [
     {
         icon: '📊',
         title: 'Pilih Status Progress',
-        desc: 'Pilih salah satu status:\n• Not Started — Belum mulai dikerjakan\n• In Progress — Sedang berjalan\n• Achieved — Sudah tercapai',
+        desc: 'Pilih salah satu status:\n• Not Started — Belum mulai dikerjakan\n• In Progress — Sedang berjalan (Wajib upload bukti)\n• Achieved — Sudah tercapai (Wajib upload bukti)',
     },
     {
         icon: '⚡',
         title: 'Isi Obstacles atau Impact',
-        desc: 'Jika status "Not Started" atau "In Progress", ceritakan tantangan yang kamu hadapi (bersifat privat, tidak tampil di Dashboard).\nJika status "Achieved", tuliskan dampak terukur yang telah kamu capai.',
+        desc: 'Ceritakan tantangan yang kamu hadapi (jika In Progress) atau dampak terukur yang telah kamu berikan (jika Achieved).',
+    },
+    {
+        icon: '📎',
+        title: 'Upload Bukti Progress',
+        desc: 'Untuk status selain "Not Started", kamu wajib mengunggah file bukti (Gambar, PDF, Doc, atau Excel) agar tombol Simpan aktif.',
     },
     {
         icon: '💾',
         title: 'Simpan Progress',
-        desc: 'Tombol "Save Progress Update" hanya aktif jika ada perubahan. Klik untuk menyimpan. Riwayat updatemu akan tercatat di Activity Timeline.',
+        desc: 'Klik "Save Progress Update". Status review akan berubah menjadi "In Review" dan Admin akan segera memberikan feedback.',
     },
     {
-        icon: '⚠️',
-        title: 'Perhatikan Icon Warning',
-        desc: 'Jika ada ikon ⚠️ di samping namamu di Dashboard, hover untuk melihat pesannya:\n• NOT_MEASURABLE — Komitmen perlu lebih terukur\n• TOO_OPTIMISTIC — Target terlalu optimis untuk 6 bulan\n• NEW_USER — Belum mengisi komitmen awal',
+        icon: warningImg,
+        isImage: true,
+        title: 'Perhatikan Info & Warning',
+        desc: 'Jika ada ikon bulat ❗ di samping namamu, hover untuk melihat feedback Admin:\n• NOT_MEASURABLE — Komitmen perlu lebih terukur\n• TOO_OPTIMISTIC — Target terlalu optimis untuk 6 bulan\n• NEW_USER — Silakan isi komitmen awalmu',
     },
 ]
 
@@ -51,14 +58,46 @@ export default function UserGuideline({ onClose }) {
 
                 {/* Content */}
                 <div className="p-8 text-center space-y-5">
-                    <div className="text-5xl">{current.icon}</div>
+                    <div className="flex justify-center">
+                        {current.isImage ? (
+                            <img src={current.icon} alt="Icon" className="w-12 h-12 object-contain" />
+                        ) : (
+                            <div className="text-5xl">{current.icon}</div>
+                        )}
+                    </div>
                     <div>
                         <p className="text-xs text-brand font-bold uppercase tracking-widest mb-1">
                             Langkah {step + 1} dari {STEPS.length}
                         </p>
                         <h2 className="text-xl font-bold text-slate-800">{current.title}</h2>
                     </div>
-                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{current.desc}</p>
+
+                    {/* Multi-line Description with custom list handling */}
+                    <div className="text-sm text-slate-600 leading-relaxed text-center">
+                        <div className="inline-block text-left max-w-[90%] mx-auto">
+                            <p className="mb-2 text-center">
+                                {current.desc.split('\n')[0].split('❗').map((part, i, arr) => (
+                                    <span key={i}>
+                                        {part}
+                                        {i < arr.length - 1 && (
+                                            <img src={warningImg} alt="Warning" className="inline-block w-4 h-4 mx-1 mb-1 align-middle" />
+                                        )}
+                                    </span>
+                                ))}
+                            </p>
+
+                            {current.desc.includes('\n•') && (
+                                <ul className="space-y-1.5 mt-2">
+                                    {current.desc.split('\n').slice(1).map((line, i) => (
+                                        <li key={i} className="flex gap-2 items-start transition-all duration-300">
+                                            <span className="text-brand shrink-0 mt-1">•</span>
+                                            <span className="text-[12px] font-medium text-slate-700 leading-5">{line.replace('• ', '')}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Actions */}

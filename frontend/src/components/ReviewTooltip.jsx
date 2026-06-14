@@ -8,14 +8,21 @@ export default function ReviewTooltip({ reason }) {
   const msg = MESSAGES[reason];
   if (!msg) return null;
 
+  const isCritical = reason === 'NEW_USER' || reason === 'NULL' || !reason;
+  const colorClass = isCritical
+    ? 'text-red-700 bg-red-100 border-red-300'
+    : 'text-yellow-700 bg-yellow-100 border-yellow-300';
+
   return (
-    <span className="relative group cursor-default">
-      <span className="text-warning text-sm">⚠️</span>
-      <span className="absolute bottom-full left-0 mb-2 hidden group-hover:block
-        bg-slate-800 text-white text-xs rounded-lg px-3 py-2 w-72 max-w-xs shadow-xl z-50 leading-snug whitespace-normal pointer-events-none">
+    <div className="relative group inline-block leading-none">
+      <span className={`${colorClass} w-5 h-5 flex items-center justify-center rounded-full text-xs font-black animate-pulse cursor-help border-2 shadow-sm transition-all hover:scale-110`}>
+        !
+      </span>
+      <span className="absolute bottom-full left-0 mb-3 hidden group-hover:block
+        bg-slate-900 text-white text-xs rounded-xl px-4 py-2 w-72 max-w-xs shadow-2xl z-50 leading-relaxed whitespace-normal pointer-events-none border border-white/10">
         {msg}
       </span>
-    </span>
+    </div>
   )
 }
 

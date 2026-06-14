@@ -136,8 +136,8 @@ async function seed() {
         // Add admin (using the ADMIN_PIN from .env or default 0000)
         const adminPin = process.env.ADMIN_PIN || '0000';
         await client.query(
-            `INSERT INTO users (name, heart_value, pin, is_admin, status)
-             VALUES ($1, $2, $3, true, 'Not Started')`,
+            `INSERT INTO users (name, heart_value, pin, is_admin, status, review_status)
+             VALUES ($1, $2, $3, true, 'Not Started', 'Accepted')`,
             ['Admin', 'System Administration', adminPin]
         );
 

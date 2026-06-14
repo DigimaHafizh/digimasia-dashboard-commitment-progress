@@ -38,15 +38,20 @@ export default function NotificationBell() {
                             <ul className="divide-y divide-slate-50">
                                 {history.map(h => (
                                     <li key={h.id} className="p-4 hover:bg-slate-50 transition">
-                                        <div className="flex justify-between items-start mb-1">
-                                            <p className="text-xs text-slate-500 font-semibold">
-                                                <span className="text-brand">
-                                                    {h.updated_by_role === 'Admin' ? `[Admin] ${h.updated_by_name}` : (h.updated_by_name || 'You')}
-                                                </span> updated
-                                            </p>
-                                            <span className="text-[10px] text-slate-400">{new Date(h.created_at).toLocaleDateString()}</span>
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex flex-col gap-0.5">
+                                                <p className="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-1">
+                                                    {h.updated_by_role === 'Admin' ? 'Review Result' : 'Progress Update'}
+                                                </p>
+                                                <p className="text-xs text-slate-600 font-bold">
+                                                    <span className="text-brand">
+                                                        {h.updated_by_role === 'Admin' ? `[Admin] ${h.updated_by_name}` : (h.updated_by_name || 'You')}
+                                                    </span> updated
+                                                </p>
+                                            </div>
+                                            <span className="text-[10px] text-slate-400 font-medium">{new Date(h.created_at).toLocaleDateString()}</span>
                                         </div>
-                                        <div className="mt-2">
+                                        <div className="mt-2 scale-90 origin-left">
                                             <StatusBadge status={h.status} />
                                         </div>
                                     </li>

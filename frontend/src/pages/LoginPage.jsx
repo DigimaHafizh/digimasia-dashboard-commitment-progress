@@ -39,59 +39,90 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     const fullPin = pin.join('')
-    if (fullPin.length < 4) { setError('Please enter your full 4-digit PIN.'); return }
-    setLoading(true); setError('')
+    if (fullPin.length < 4) {
+      setError('Please enter your full 4-digit PIN.')
+      return
+    }
+    setLoading(true)
+    setError('')
     try {
       const { data } = await api.post('/auth/login', { pin: fullPin })
       login(data)
       navigate(data.is_admin ? '/admin' : '/dashboard')
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid PIN. Please try again.')
-    } finally { setLoading(false) }
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#DBEAFE' }}>
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ backgroundColor: '#DBEAFE' }}>
+      {/* Subtle Loading Mask */}
+      {loading && (
+        <div className="absolute inset-0 z-50 bg-black/30 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300 pointer-events-auto">
+          <div className="w-12 h-12 border-4 border-[#1E2538] border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      )}
+
+      {/* Main Card with Background Image */}
       <div
-        className="rounded-2xl shadow-2xl overflow-hidden w-full max-w-sm text-center"
+        className="rounded-[24px] shadow-[0_20px_60px_rgba(15,23,42,0.4)] overflow-hidden w-full max-w-[420px] text-center relative z-10 animate-in zoom-in-95 duration-500"
         style={{ backgroundImage: `url(${bg1Img})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
       >
-        {/* Overlay for readability */}
-        <div className="bg-black/30 backdrop-blur-[2px] p-10">
-          <div className="mb-4 flex justify-center">
-            <img src={treeImg} alt="Tree" className="w-16 h-16 object-contain drop-shadow-md" />
+        {/* Darker Overlay to match Production Dense Navy */}
+        <div className="bg-[#0F172A]/98 p-10 space-y-7">
+          {/* Logo */}
+          <div className="flex justify-center">
+            <img src={treeImg} alt="Tree" className="w-[84px] h-[84px] object-contain drop-shadow-xl" />
           </div>
-          <h1 className="text-2xl font-extrabold text-white mb-1 drop-shadow">Commitment Progress</h1>
-          <p className="text-sm text-blue-100 mb-8">X-Traordinary · Grow With Heart</p>
 
-          <form onSubmit={handleSubmit}>
-            <p className="text-sm font-semibold text-blue-100 mb-3">Enter your 4-digit PIN</p>
-            <div className="flex gap-3 justify-center mb-3">
-              {pin.map((d, i) => (
-                <input
-                  key={i} id={`pin-${i}`}
-                  type={showPin ? 'text' : 'password'} inputMode="numeric" maxLength={1} value={d}
-                  onChange={(e) => handleChange(e.target.value, i)}
-                  onKeyDown={(e) => handleKeyDown(e, i)}
-                  className="w-14 h-14 text-center text-2xl font-bold border-2 border-blue-300/50 bg-white/20 text-white rounded-xl focus:border-white focus:outline-none focus:ring-2 focus:ring-white/40 transition shadow-sm placeholder-white/40"
-                />
-              ))}
+          {/* Title & Subtitle */}
+          <div>
+            <h1 className="text-[26px] font-extrabold text-white tracking-tight">Commitment Progress</h1>
+            <p className="text-[13px] font-semibold text-slate-200 mt-1">X-Traordinary - Grow With Heart</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6 pt-2">
+            <div className="space-y-4">
+              <p className="text-[12px] font-bold text-white/80 uppercase tracking-widest">Enter your 4-digit PIN</p>
+
+              {/* PIN Inputs */}
+              <div className="flex gap-4 justify-center">
+                {pin.map((d, i) => (
+                  <input
+                    key={i} id={`pin-${i}`}
+                    type={showPin ? 'text' : 'password'} inputMode="numeric" maxLength={1} value={d}
+                    onChange={(e) => handleChange(e.target.value, i)}
+                    onKeyDown={(e) => handleKeyDown(e, i)}
+                    className="w-[54px] h-[54px] text-center text-2xl font-bold border-2 border-slate-500 bg-white/10 text-white rounded-[14px] focus:border-white focus:bg-white/20 focus:outline-none transition-all shadow-lg placeholder-white/20"
+                  />
+                ))}
+              </div>
+
+              {/* Show PIN Toggle */}
+              <button
+                type="button"
+                onClick={() => setShowPin(!showPin)}
+                className="text-[11px] font-bold text-slate-300 hover:text-white transition-all flex items-center gap-2 mx-auto pt-1 group"
+              >
+                <span className="bg-white/10 p-1 rounded-md group-hover:bg-white/20 transition-all">
+                  {showPin ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" /><path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" /></svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>
+                  )}
+                </span>
+                {showPin ? 'Hide PIN' : 'Show PIN'}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowPin(!showPin)}
-              className="text-xs text-blue-200 hover:text-white transition mb-4 flex items-center gap-1 mx-auto"
-            >
-              {showPin ? (
-                <><svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg> Hide PIN</>
-              ) : (
-                <><svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg> Show PIN</>
-              )}
-            </button>
-            {error && <p className="text-red-300 text-sm mb-4 font-medium">{error}</p>}
+
+            {error && <p className="text-red-400 text-xs font-bold py-1 bg-red-400/10 rounded-lg">{error}</p>}
+
+            {/* Submit Button */}
             <button
               type="submit" disabled={loading}
-              className="w-full py-3 rounded-xl bg-white text-brand-dark font-bold hover:bg-blue-100 transition disabled:opacity-50 shadow-md"
+              className="w-full py-4 rounded-[14px] bg-white text-[#0F172A] font-black text-[14px] uppercase tracking-wide hover:bg-slate-100 transition-all disabled:opacity-50 shadow-xl active:scale-[0.98]"
             >
               {loading ? 'Verifying...' : 'Enter Dashboard'}
             </button>

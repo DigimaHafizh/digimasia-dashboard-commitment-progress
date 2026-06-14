@@ -20,10 +20,33 @@ body {
 .status-badge {
   @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold;
 }
-.status-not-started  { @apply bg-gray-200 text-gray-700; }
-.status-in-progress  { @apply bg-yellow-100 text-yellow-800; }
-.status-achieved     { @apply bg-green-100 text-green-800; }
+
+.status-not-started {
+  @apply bg-gray-200 text-gray-700;
+}
+
+.status-in-progress {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.status-achieved {
+  @apply bg-green-100 text-green-800;
+}
+
+.status-in-review {
+  @apply bg-yellow-50 text-yellow-700 border border-yellow-200;
+}
+
+.status-declined {
+  @apply bg-red-100 text-red-700 border border-red-200;
+}
 
 /* Hide scrollbar but keep scrollable */
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

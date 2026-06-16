@@ -28,22 +28,48 @@ router.get('/commitments', async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
 })
 
-// Admin revises a commitment
+// Admin revises a commitment (also handles is_hidden & review_reason for the edit panel)
 router.patch('/commitments/:id', async (req, res) => {
   const { id } = req.params
-  const { initial_commitment } = req.body
+  const { initial_commitment, is_hidden, review_reason } = req.body
   try {
     const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [id])
     if (!rows.length) return res.status(404).json({ message: 'User not found' })
-    const old = rows[0].initial_commitment
-    await pool.query('UPDATE users SET initial_commitment = $1, review_reason = NULL, updated_at = NOW() WHERE id = $2', [initial_commitment, id])
-    await pool.query(
-      'INSERT INTO commitment_revisions (user_id, old_commitment, new_commitment, admin_id, admin_name) VALUES ($1,$2,$3,$4,$5)',
-      [id, old, initial_commitment, req.user.id, req.user.name]
-    )
-    res.json({ message: 'Commitment revised and audit logged' })
+
+    // Build dynamic SET clause
+    const setFields = []
+    const vals = []
+
+    if (initial_commitment !== undefined) {
+      setFields.push(`initial_commitment = $${vals.length + 1}`)
+      vals.push(initial_commitment)
+    }
+    if (is_hidden !== undefined) {
+      setFields.push(`is_hidden = $${vals.length + 1}`)
+      vals.push(is_hidden)
+    }
+    if (review_reason !== undefined) {
+      setFields.push(`review_reason = $${vals.length + 1}`)
+      vals.push(review_reason)
+    }
+    setFields.push(`updated_at = NOW()`)
+    vals.push(id)
+
+    await pool.query(`UPDATE users SET ${setFields.join(', ')} WHERE id = $${vals.length}`, vals)
+
+    // Log commitment revision only if text was changed
+    if (initial_commitment !== undefined) {
+      const old = rows[0].initial_commitment
+      await pool.query(
+        'INSERT INTO commitment_revisions (user_id, old_commitment, new_commitment, admin_id, admin_name) VALUES ($1,$2,$3,$4,$5)',
+        [id, old, initial_commitment, req.user.id, req.user.name]
+      )
+    }
+
+    res.json({ message: 'User updated successfully' })
   } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
 })
+
 
 // Full progress history for Excel export
 router.get('/progress-history', async (req, res) => {

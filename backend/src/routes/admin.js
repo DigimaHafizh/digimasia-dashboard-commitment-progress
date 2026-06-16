@@ -120,9 +120,9 @@ router.patch('/progress/:id', async (req, res) => {
       const logMessage = review_status === 'Declined' ? `Review Declined: ${review_reason || 'No specific reason provided.'}` : `Review Status Updated: Approved`
       await pool.query(
         `INSERT INTO progress_log 
-         (user_id, status, measurable_impact, challenges, updated_by_name, updated_by_role) 
-         VALUES ($1,$2,$3,$4,$5,$6)`,
-        [id, logStatus, logMessage, null, req.user.name, 'Admin']
+         (user_id, status, measurable_impact, challenges, updated_by_name, updated_by_role, commitment_text) 
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [id, logStatus, logMessage, null, req.user.name, 'Admin', currentCommitment || '-']
       )
     }
     res.json({ message: 'Progress overridden successfully by Admin' })

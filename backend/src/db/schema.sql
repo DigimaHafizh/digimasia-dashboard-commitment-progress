@@ -25,8 +25,10 @@ CREATE TABLE IF NOT EXISTS progress_log (
   challenges        TEXT,
   updated_by_name   VARCHAR(200),
   updated_by_role   VARCHAR(50),
+  commitment_text   TEXT,
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
+
 
 -- Commitment revisions by admin
 CREATE TABLE IF NOT EXISTS commitment_revisions (

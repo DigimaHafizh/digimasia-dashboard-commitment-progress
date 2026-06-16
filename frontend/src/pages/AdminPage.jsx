@@ -71,16 +71,16 @@ export default function AdminPage() {
   const saveEdit = async (id) => {
     setSaving(true)
     try {
-      // Save commitment text
-      await api.patch(`/admin/commitments/${id}`, { initial_commitment: editText })
-      // Save warning + hidden state
-      await api.patch(`/admin/users/${id}`, {
+      // Single merged call — backend now handles commitment, is_hidden & review_reason together
+      await api.patch(`/admin/commitments/${id}`, {
+        initial_commitment: editText,
         review_reason: editWarning,
-        is_hidden: editHidden
+        is_hidden: editHidden,
       })
       fetchData(); cancelEdit()
     } finally { setSaving(false) }
   }
+
 
   return (
     <div className="min-h-screen bg-slate-100">

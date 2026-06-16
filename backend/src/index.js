@@ -34,8 +34,7 @@ app.use(cors({
 app.use(express.json())
 app.use('/api/uploads', express.static('uploads'))
 
-// Rate-limit login endpoint (relaxed to 200 to accommodate multi-user office IPs)
-app.use('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, max: 200, message: 'Too many login attempts. Please wait.' }))
+// Removed rate limit for login to avoid blocking office IPs during events
 
 app.use('/api/auth', authRoutes)
 app.use('/api/commitments', commitmentRoutes)

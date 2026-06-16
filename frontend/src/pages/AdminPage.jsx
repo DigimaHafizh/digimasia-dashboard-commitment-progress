@@ -115,7 +115,15 @@ export default function AdminPage() {
               className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
                 ${filter === f ? 'bg-brand-dark text-white shadow-xl ring-4 ring-brand/10' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200'}`}>
               {f === 'Needs Review' ? '🟡 Needs Review' : f}
-              {f === 'Needs Review' && <span className="ml-2 bg-yellow-500 text-white text-[10px] px-2 py-0.5 rounded-full">{visibleData.filter(d => d.review_reason && d.review_status === 'Pending').length}</span>}
+              {f === 'Needs Review' && (
+                <span className="ml-2 bg-yellow-500 text-white text-[10px] px-2 py-0.5 rounded-full">
+                  {visibleData.filter(d =>
+                    d.review_reason &&
+                    d.review_status === 'Pending' &&
+                    (showHidden ? true : !d.is_hidden)
+                  ).length}
+                </span>
+              )}
             </button>
           ))}
           {/* Show/Hide hidden users toggle */}

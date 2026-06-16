@@ -22,7 +22,7 @@ router.get('/commitments', async (req, res) => {
         LIMIT 1
       ) pl ON true
       WHERE u.is_admin = false
-      ORDER BY u.name ASC
+      ORDER BY u.is_hidden ASC, u.name ASC
     `)
     res.json(rows)
   } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
@@ -92,21 +92,40 @@ router.patch('/progress/:id', async (req, res) => {
     if (review_status !== 'Pending') {
       const logStatus = review_status === 'Accepted' ? 'APPROVED' : 'DECLINED'
       const logMessage = review_status === 'Declined' ? `Review Declined: ${review_reason || 'No specific reason provided.'}` : `Review Status Updated: Approved`
-
-      // Also update the commitment's active review_status in the DB if we want to ensure immediate sync
-      // Actually, review_status is already part of setFields, we just need to ensure the value is correct
-
-      // Failsafe: Ensure currentCommitment is never undefined or null for the log
-      const safeCommitment = currentCommitment || '-'
-
       await pool.query(
         `INSERT INTO progress_log 
-         (user_id, status, measurable_impact, challenges, updated_by_name, updated_by_role, commitment_text) 
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [id, logStatus, logMessage, null, req.user.name, 'Admin', safeCommitment]
+         (user_id, status, measurable_impact, challenges, updated_by_name, updated_by_role) 
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [id, logStatus, logMessage, null, req.user.name, 'Admin']
       )
     }
     res.json({ message: 'Progress overridden successfully by Admin' })
+  } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
+})
+
+// Admin updates user metadata (is_hidden, review_reason)
+router.patch('/users/:id', async (req, res) => {
+  const { id } = req.params
+  const { is_hidden, review_reason } = req.body
+  try {
+    const setFields = []
+    const vals = []
+
+    if (is_hidden !== undefined) {
+      setFields.push(`is_hidden = $${vals.length + 1}`)
+      vals.push(is_hidden)
+    }
+    if (review_reason !== undefined) {
+      setFields.push(`review_reason = $${vals.length + 1}`)
+      vals.push(review_reason)
+    }
+
+    if (!setFields.length) return res.status(400).json({ message: 'No fields to update' })
+
+    setFields.push(`updated_at = NOW()`)
+    vals.push(id)
+    await pool.query(`UPDATE users SET ${setFields.join(', ')} WHERE id = $${vals.length}`, vals)
+    res.json({ message: 'User updated' })
   } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
 })
 

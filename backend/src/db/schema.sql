@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
   name         VARCHAR(200)  NOT NULL,
   pin          CHAR(4)       NOT NULL UNIQUE,
   is_admin     BOOLEAN       DEFAULT FALSE,
+  is_hidden    BOOLEAN       DEFAULT FALSE,
   heart_value  VARCHAR(100),                     -- e.g. Harmony, Excellence, etc.
   review_reason VARCHAR(20),                     -- NOT_MEASURABLE | TOO_OPTIMISTIC | NEW_USER | NULL
   initial_commitment TEXT,
@@ -13,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   created_at   TIMESTAMPTZ   DEFAULT NOW(),
   updated_at   TIMESTAMPTZ   DEFAULT NOW()
 );
+
 
 -- Progress log (append-only audit trail)
 CREATE TABLE IF NOT EXISTS progress_log (

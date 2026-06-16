@@ -24,12 +24,13 @@ router.get('/', authMiddleware, async (req, res) => {
     const { rows } = await pool.query(`
       SELECT id, name, heart_value, initial_commitment, measurable_impact, status, review_reason, review_status
       FROM users
-      WHERE is_admin = false
+      WHERE is_admin = false AND (is_hidden = false OR is_hidden IS NULL)
       ORDER BY name ASC
     `)
     res.json(rows)
   } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
 })
+
 
 // Get my own commitment (with challenges)
 router.get('/me', authMiddleware, async (req, res) => {

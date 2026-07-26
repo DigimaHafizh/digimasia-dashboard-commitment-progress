@@ -33,8 +33,16 @@ body {
   @apply bg-green-100 text-green-800;
 }
 
+.status-accepted {
+  @apply bg-purple-50 text-purple-700 border border-purple-200;
+}
+
 .status-in-review {
   @apply bg-yellow-50 text-yellow-700 border border-yellow-200;
+}
+
+.status-on-review {
+  @apply bg-blue-50 text-blue-700 border border-blue-200;
 }
 
 .status-declined {

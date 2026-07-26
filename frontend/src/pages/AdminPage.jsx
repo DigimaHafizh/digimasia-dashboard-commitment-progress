@@ -1,86 +1,158 @@
-﻿import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import api from '../utils/api'
+import api, { getAssetURL } from '../utils/api'
 import StatusBadge from '../components/StatusBadge'
-import ReviewTooltip from '../components/ReviewTooltip'
+import SummaryStats from '../components/SummaryStats'
 import treeImg from '../asset/Pohon 10.png'
 import ConfirmModal from '../components/ConfirmModal'
 import DeclineModal from '../components/DeclineModal'
 import AdminGuideline from '../components/AdminGuideline'
+import { getEffectiveStatus, getStatusPriority } from '../utils/status'
+import { IconWave, IconDownload, IconHistory, IconDocument, IconCheck, IconWarning, IconClose, IconClock, IconTrash, IconPlus } from '../components/icons'
 
-const WARNING_OPTIONS = [
-  { value: null, label: 'None', color: 'text-slate-400' },
-  { value: 'NOT_MEASURABLE', label: '🟡 Not Measurable', color: 'text-yellow-600' },
-  { value: 'TOO_OPTIMISTIC', label: '🟠 Too Optimistic', color: 'text-orange-500' },
-  { value: 'NEW_USER', label: '🔴 New User (No Commitment)', color: 'text-red-500' },
-]
+const STATUSES = ['All', 'No Submission', 'On Review', 'Accepted', 'In Progress', 'Achieved', 'Rejected']
 
 export default function AdminPage() {
   const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('All')
   const [data, setData] = useState([])
   const [filter, setFilter] = useState('All')
-  const [editId, setEditId] = useState(null)
-  const [editText, setEditText] = useState('')
-  const [editWarning, setEditWarning] = useState(null)
-  const [editHidden, setEditHidden] = useState(false)
   const [saving, setSaving] = useState(false)
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
-  const [declineId, setDeclineId] = useState(null)
+  const [declineTarget, setDeclineTarget] = useState(null) // { id, type: 'commitment' | 'progress' }
+  const [approveTarget, setApproveTarget] = useState(null) // { id, type: 'commitment' | 'progress' }
   const [clearId, setClearId] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null) // { id, name }
   const [showGuideline, setShowGuideline] = useState(false)
-  const [showHidden, setShowHidden] = useState(false)
+  const [historyUserId, setHistoryUserId] = useState(null)
+  const [historyData, setHistoryData] = useState([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [autoFilterApplied, setAutoFilterApplied] = useState(false)
+  const [addUserOpen, setAddUserOpen] = useState(false)
+  const [addUserForm, setAddUserForm] = useState({ name: '', pin: '', heart_value: '' })
+  const [addUserError, setAddUserError] = useState('')
+  const [addUserSaving, setAddUserSaving] = useState(false)
+
+  useEffect(() => {
+    if (historyUserId) {
+      setLoadingHistory(true)
+      api.get(`/admin/commitments/${historyUserId}/history`)
+        .then(r => setHistoryData(r.data))
+        .catch(e => console.error(e))
+        .finally(() => setLoadingHistory(false))
+    } else {
+      setHistoryData([])
+    }
+  }, [historyUserId])
+
+  const handleExportExcel = async () => {
+    const { exportStyledExcel } = await import('../utils/exportExcel')
+    exportStyledExcel({
+      filename: 'User_Commitments_Report.xlsx',
+      sheetName: 'User Commitments',
+      columns: [
+        { header: 'No', key: 'no' },
+        { header: 'Name', key: 'name' },
+        { header: 'Division/Heart Value', key: 'heart_value' },
+        { header: 'Commitment', key: 'commitment' },
+        { header: 'Status', key: 'status' },
+        { header: 'Review Status', key: 'review_status' },
+        { header: 'Latest Challenges', key: 'challenges' },
+        { header: 'Measurable Impact', key: 'impact' },
+        { header: 'Attachment', key: 'attachment' },
+      ],
+      rows: visibleData.map((row, idx) => ({
+        no: idx + 1,
+        name: row.name,
+        heart_value: row.heart_value || '—',
+        commitment: row.initial_commitment || 'No commitment submitted yet.',
+        status: getEffectiveStatus(row),
+        review_status: row.review_status || 'No Submission',
+        challenges: row.latest_challenges || '—',
+        impact: row.measurable_impact || '—',
+        attachment: row.latest_attachment_url
+          ? { text: 'View Attachment', hyperlink: `${window.location.origin}${getAssetURL(row.latest_attachment_url)}` }
+          : '—',
+      })),
+    })
+  }
 
   const fetchData = () => api.get('/admin/commitments').then(r => setData(r.data))
   useEffect(() => { fetchData() }, [])
 
   const visibleData = data.filter(d => !d.is_admin)
-  const filtered = (filter === 'Needs Review'
-    ? visibleData.filter(d => d.review_reason && d.review_status === 'Pending')
-    : visibleData
-  ).filter(d => showHidden ? true : !d.is_hidden)
 
-  const hiddenCount = visibleData.filter(d => d.is_hidden).length
+  const isPending = (d) => d.review_status === 'On Review' || (d.review_status === 'Accepted' && d.progress_status === 'On Review')
+  const onReviewCount = visibleData.filter(isPending).length
 
-  const handleReview = async (id, review_status, reason = null) => {
-    if (review_status === 'Declined' && !reason) {
-      setDeclineId(id);
-      return;
+  // Land admins straight on the review queue when one exists, instead of the full alphabetical list
+  useEffect(() => {
+    if (!autoFilterApplied && data.length > 0) {
+      if (onReviewCount > 0) setFilter('On Review')
+      setAutoFilterApplied(true)
+    }
+  }, [data, autoFilterApplied, onReviewCount])
+
+  const filtered = (filter === 'On Review' ? visibleData.filter(isPending) : visibleData)
+    .filter(d => statusFilter === 'All' || getEffectiveStatus(d) === statusFilter)
+    .filter(d => d.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => getStatusPriority(a) - getStatusPriority(b) || a.name.localeCompare(b.name))
+
+  const handleReview = async (id, type, review_status, reason = null) => {
+    if (review_status === 'Rejected' && !reason) {
+      setDeclineTarget({ id, type })
+      return
     }
     setSaving(true)
     try {
-      await api.patch(`/admin/progress/${id}`, { review_status, review_reason: reason })
+      if (type === 'progress') {
+        await api.patch(`/admin/progress-update/${id}`, { progress_status: review_status, review_reason: reason })
+      } else {
+        await api.patch(`/admin/progress/${id}`, { review_status, review_reason: reason })
+      }
       fetchData()
-      setDeclineId(null)
+      setDeclineTarget(null)
+      setApproveTarget(null)
     } catch (e) {
-      alert('Failed to update review status.');
+      alert(e.response?.data?.message || 'Failed to update review status.')
     } finally {
       setSaving(false)
     }
   }
 
-  const startEdit = (row) => {
-    setEditId(row.id)
-    setEditText(row.initial_commitment || '')
-    setEditWarning(row.review_reason || null)
-    setEditHidden(row.is_hidden || false)
-  }
-  const cancelEdit = () => { setEditId(null); setEditText(''); setEditWarning(null); setEditHidden(false) }
-
-  const saveEdit = async (id) => {
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return
     setSaving(true)
     try {
-      // Single merged call — backend now handles commitment, is_hidden & review_reason together
-      await api.patch(`/admin/commitments/${id}`, {
-        initial_commitment: editText,
-        review_reason: editWarning,
-        is_hidden: editHidden,
-      })
-      fetchData(); cancelEdit()
-    } finally { setSaving(false) }
+      await api.delete(`/admin/users/${deleteTarget.id}`)
+      fetchData()
+      setDeleteTarget(null)
+    } catch (e) {
+      alert(e.response?.data?.message || 'Failed to delete user.')
+    } finally {
+      setSaving(false)
+    }
   }
 
+  const handleAddUser = async () => {
+    setAddUserError('')
+    if (!addUserForm.name.trim() || !/^\d{4}$/.test(addUserForm.pin)) {
+      setAddUserError('Name and a 4-digit PIN are required.')
+      return
+    }
+    setAddUserSaving(true)
+    try {
+      await api.post('/admin/users', addUserForm)
+      setAddUserOpen(false)
+      setAddUserForm({ name: '', pin: '', heart_value: '' })
+      fetchData()
+    } catch (e) {
+      setAddUserError(e.response?.data?.message || 'Failed to add user.')
+    } finally {
+      setAddUserSaving(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -92,55 +164,69 @@ export default function AdminPage() {
             </div>
             <div>
               <h1 className="text-white font-extrabold text-lg leading-tight drop-shadow">Admin Panel</h1>
-              <p className="text-white/70 text-xs font-medium tracking-tight">Commitment Management · Admin</p>
+              <p className="text-white/70 text-xs font-medium tracking-tight">Commitment Review · Admin</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => setShowGuideline(true)} className="text-white/70 hover:text-white transition-all">
+            <span className="text-white/90 text-sm font-semibold bg-white/10 px-3 py-1 rounded-full hidden sm:flex items-center gap-1.5">Hi, {user?.name} <IconWave className="w-4 h-4" /></span>
+            <button onClick={() => setShowGuideline(true)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25 transition" title="Show Guideline">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </button>
-            <button onClick={() => navigate('/dashboard')} className="bg-white/10 text-white text-xs font-black px-4 py-2 rounded-xl hover:bg-white/20 transition-all border border-white/10 shadow-inner">View Dashboard</button>
             <button onClick={() => setIsLogoutModalOpen(true)} className="text-white/70 text-xs font-black uppercase tracking-widest hover:text-white transition-all ml-2">Logout</button>
           </div>
         </div>
       </header>
 
       <div className="max-w-[98%] mx-auto px-4 py-6 space-y-4">
-        {/* Filter Tabs */}
-        <div className="flex flex-wrap gap-2 items-center">
-          {['All', 'Needs Review'].map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
-                ${filter === f ? 'bg-brand-dark text-white shadow-xl ring-4 ring-brand/10' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200'}`}>
-              {f === 'Needs Review' ? '🟡 Needs Review' : f}
-              {f === 'Needs Review' && (
-                <span className="ml-2 bg-yellow-500 text-white text-[10px] px-2 py-0.5 rounded-full">
-                  {visibleData.filter(d =>
-                    d.review_reason &&
-                    d.review_status === 'Pending' &&
-                    (showHidden ? true : !d.is_hidden)
-                  ).length}
-                </span>
-              )}
+        <SummaryStats data={data} />
+
+        {/* Search & Status Filter */}
+        <div className="bg-white rounded-xl shadow-sm p-4 flex flex-col sm:flex-row gap-3 border border-slate-200">
+          <input
+            type="text" placeholder="Search by name..." value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="flex-1 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+          />
+          <select
+            value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            className="border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+          >
+            {STATUSES.map(s => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+
+        {/* Filter Tabs & Actions */}
+        <div className="flex flex-wrap gap-3 items-center w-full">
+          {/* View filters */}
+          <div className="flex flex-wrap gap-2">
+            {['All', 'On Review'].map(f => (
+              <button key={f} onClick={() => setFilter(f)}
+                className={`inline-flex items-center px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
+                  ${filter === f ? 'bg-brand-dark text-white shadow-xl ring-4 ring-brand/10' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200'}`}>
+                {f === 'On Review' ? <><IconClock className="w-3.5 h-3.5 mr-1.5" /> On Review</> : f}
+                {f === 'On Review' && (
+                  <span className="ml-2 bg-yellow-500 text-white text-[10px] px-2 py-0.5 rounded-full">{onReviewCount}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Divider separating view filters from one-off actions */}
+          <div className="hidden sm:block w-px h-8 bg-slate-300/70 mx-1" />
+
+          {/* Actions */}
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setAddUserOpen(true)}
+              className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-brand text-white hover:bg-brand-dark shadow-md transition-all flex items-center gap-2">
+              <IconPlus className="w-3.5 h-3.5" /> Add User
             </button>
-          ))}
-          {/* Show/Hide hidden users toggle */}
-          {hiddenCount > 0 && (
-            <button
-              onClick={() => setShowHidden(v => !v)}
-              className={`ml-auto px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2
-                ${showHidden ? 'bg-slate-700 text-white' : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'}`}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                {showHidden
-                  ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                  : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                }
-              </svg>
-              {showHidden ? 'Hide Hidden' : `Show Hidden (${hiddenCount})`}
+            <button onClick={handleExportExcel}
+              className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-100 transition-all flex items-center gap-2">
+              <IconDownload className="w-3.5 h-3.5" /> Export Commitments
             </button>
-          )}
+          </div>
         </div>
 
         {/* Table */}
@@ -149,137 +235,103 @@ export default function AdminPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-100">
                 <tr>
-                  <th className="px-6 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest w-16">#</th>
-                  <th className="px-6 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest min-w-[150px]">Name</th>
-                  <th className="px-6 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest min-w-[200px]">Commitment</th>
-                  <th className="px-6 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest w-32">Attachment</th>
-                  <th className="px-6 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest w-32">Status</th>
-                  <th className="px-6 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest min-w-[350px]">Obstacles</th>
-                  <th className="px-6 py-4 text-center font-black text-slate-400 uppercase text-[10px] tracking-widest w-48">Review Status</th>
-                  <th className="px-6 py-4 text-center font-black text-slate-400 uppercase text-[10px] tracking-widest w-24">Actions</th>
+                  <th className="px-4 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest w-10">#</th>
+                  <th className="px-4 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest min-w-[120px]">Name</th>
+                  <th className="px-4 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest min-w-[220px]">Commitment</th>
+                  <th className="px-4 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest w-24">Attachment</th>
+                  <th className="px-4 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest w-28">Status</th>
+                  <th className="px-4 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest min-w-[160px] max-w-[220px]">Obstacles</th>
+                  <th className="px-4 py-4 text-center font-black text-slate-400 uppercase text-[10px] tracking-widest w-48">Review Action</th>
+                  <th className="px-4 py-4 text-center font-black text-slate-400 uppercase text-[10px] tracking-widest w-14">Delete</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map((row, index) => (
-                  <tr key={row.id} className={`hover:bg-slate-50/50 transition-colors 
-                    ${row.is_hidden ? 'opacity-50' : ''}
-                    ${row.review_status === 'Pending' ? 'bg-yellow-50/30' : row.review_reason ? 'bg-red-50/30' : ''}`}>
-                    <td className="px-6 py-4 text-slate-400 font-bold text-[11px]">
-                      {row.is_hidden && <span className="mr-1 text-slate-300" title="Hidden">👁️‍🗨️</span>}
-                      {index + 1}
+                {filtered.map((row, index) => {
+                  const pendingCommitment = row.review_status === 'On Review'
+                  const pendingProgress = row.review_status === 'Accepted' && row.progress_status === 'On Review'
+                  const progressDeclined = row.review_status === 'Accepted' && row.progress_status === 'Rejected'
+                  return (
+                  <tr key={row.id} className={`hover:bg-slate-50/50 transition-colors
+                    ${!row.review_status ? 'opacity-60' : ''}
+                    ${pendingCommitment || pendingProgress ? 'bg-yellow-50/30' : row.review_status === 'Rejected' || progressDeclined ? 'bg-red-50/20' : ''}`}>
+                    <td className="px-4 py-4 text-slate-400 font-bold text-[11px]">{index + 1}</td>
+                    <td className="px-4 py-4 font-bold text-slate-900 whitespace-nowrap">
+                      {row.name}
                     </td>
-                    <td className="px-6 py-4 font-bold text-slate-900 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        {row.name}
-                        {!row.initial_commitment?.trim() ? (
-                          <ReviewTooltip reason="NEW_USER" />
-                        ) : row.review_reason ? (
-                          <ReviewTooltip reason={row.review_reason} />
-                        ) : null}
+                    <td className="px-4 py-4 min-w-[220px]">
+                      <div className="flex flex-col gap-2">
+                        <p className="text-slate-600 text-xs leading-relaxed italic line-clamp-2">
+                          {row.initial_commitment
+                            ? `"${row.initial_commitment}"`
+                            : <span className="text-slate-300 not-italic">No commitment submitted yet.</span>
+                          }
+                        </p>
+                        <div>
+                          <button onClick={() => setHistoryUserId(row.id)} className="text-[10px] font-black text-brand bg-brand/5 border border-brand/10 px-2.5 py-1.5 rounded-lg hover:bg-brand/10 transition-all flex items-center gap-1.5 w-fit">
+                            <IconHistory className="w-3.5 h-3.5" /> History
+                          </button>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 min-w-[300px]">
-                      {editId === row.id ? (
-                        <div className="space-y-3 animate-in fade-in zoom-in-95 duration-200">
-                          {/* Commitment textarea */}
-                          <textarea
-                            value={editText} onChange={e => setEditText(e.target.value)} rows={3}
-                            placeholder="Commitment text..."
-                            className="w-full border-2 border-brand rounded-2xl p-4 text-xs font-medium leading-relaxed focus:outline-none focus:ring-4 focus:ring-brand/10 bg-slate-50 shadow-inner resize-none text-slate-700"
-                            autoFocus
-                          />
-
-                          {/* Warning level picker */}
-                          <div className="space-y-1">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Warning Icon</p>
-                            <div className="flex flex-wrap gap-2">
-                              {WARNING_OPTIONS.map(opt => (
-                                <button
-                                  key={String(opt.value)}
-                                  onClick={() => setEditWarning(opt.value)}
-                                  className={`text-[10px] font-bold px-3 py-1.5 rounded-xl border transition-all
-                                    ${editWarning === opt.value
-                                      ? 'bg-brand text-white border-brand shadow-md'
-                                      : 'bg-white text-slate-500 border-slate-200 hover:border-brand/40'}`}>
-                                  {opt.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Hide toggle */}
-                          <label className="flex items-center gap-3 cursor-pointer select-none">
-                            <div
-                              onClick={() => setEditHidden(v => !v)}
-                              className={`relative w-10 h-5 rounded-full transition-all duration-300
-                                ${editHidden ? 'bg-slate-700' : 'bg-slate-200'}`}>
-                              <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-300
-                                ${editHidden ? 'translate-x-5' : ''}`} />
-                            </div>
-                            <span className="text-[11px] font-bold text-slate-500">
-                              {editHidden ? '👁️‍🗨️ Hidden from dashboard' : 'Visible on dashboard'}
-                            </span>
-                          </label>
-
-                          {/* Actions */}
-                          <div className="flex gap-2 justify-end">
-                            <button onClick={cancelEdit} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 px-3 py-2 transition-all">Cancel</button>
-                            <button
-                              onClick={() => saveEdit(row.id)}
-                              disabled={saving}
-                              className="bg-brand text-white text-[10px] font-black uppercase tracking-widest px-6 py-2 rounded-xl hover:bg-brand-dark transition-all shadow-lg shadow-brand/20 disabled:opacity-50">
-                              {saving ? 'Saving...' : 'Save Changes'}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-slate-600 text-xs leading-relaxed italic line-clamp-3">
-                          {row.initial_commitment ? `"${row.initial_commitment}"` : <span className="text-slate-300">No commitment defined yet.</span>}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4">
                       {row.latest_attachment_url ? (
-                        <a href={`${import.meta.env.VITE_API_URL}${row.latest_attachment_url}`} target="_blank" className="flex items-center gap-2 text-brand hover:text-brand-dark font-black text-[10px] uppercase tracking-widest transition-colors">
-                          <span className="text-lg leading-none">📄</span> VIEW PROOF
+                        <a href={getAssetURL(row.latest_attachment_url)} target="_blank" className="flex items-center gap-1.5 text-brand hover:text-brand-dark font-black text-[10px] uppercase tracking-widest transition-colors">
+                          <IconDocument className="w-4 h-4" /> View
                         </a>
                       ) : <span className="text-slate-300">—</span>}
                     </td>
-                    <td className="px-6 py-4"><StatusBadge status={row.status} /></td>
-                    <td className="px-6 py-4 max-w-[200px]">
+                    <td className="px-4 py-4"><StatusBadge status={getEffectiveStatus(row)} /></td>
+                    <td className="px-4 py-4 max-w-[220px]">
                       <p className="text-[11px] font-bold text-slate-500 line-clamp-2 italic">
                         {row.latest_challenges || <span className="text-slate-300 font-medium">—</span>}
                       </p>
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      {row.review_status === 'Pending' ? (
-                        <div className="flex gap-2 justify-center">
-                          <button onClick={() => handleReview(row.id, 'Accepted')} className="bg-green-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl hover:bg-green-600 transition-all shadow-md shadow-green-200">Approve</button>
-                          <button onClick={() => handleReview(row.id, 'Declined')} className="bg-white border-2 border-red-100 text-red-500 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl hover:bg-red-50 transition-all">Decline</button>
+                    <td className="px-4 py-4 text-center">
+                      {pendingCommitment ? (
+                        <div className="flex flex-col items-center gap-1.5">
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">New Commitment</span>
+                          <div className="flex gap-2 justify-center">
+                            <button onClick={() => setApproveTarget({ id: row.id, type: 'commitment' })} className="bg-green-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl hover:bg-green-600 transition-all shadow-md shadow-green-200">Approve</button>
+                            <button onClick={() => setDeclineTarget({ id: row.id, type: 'commitment' })} className="bg-white border-2 border-red-100 text-red-500 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl hover:bg-red-50 transition-all">Decline</button>
+                          </div>
+                        </div>
+                      ) : pendingProgress ? (
+                        <div className="flex flex-col items-center gap-1.5">
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Update: {row.status}</span>
+                          <div className="flex gap-2 justify-center">
+                            <button onClick={() => setApproveTarget({ id: row.id, type: 'progress' })} className="bg-green-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl hover:bg-green-600 transition-all shadow-md shadow-green-200">Approve</button>
+                            <button onClick={() => setDeclineTarget({ id: row.id, type: 'progress' })} className="bg-white border-2 border-red-100 text-red-500 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl hover:bg-red-50 transition-all">Decline</button>
+                          </div>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-2">
-                          <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border
-                             ${row.review_status === 'Accepted' ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
-                            {row.review_status === 'Accepted' ? '✓ APPROVED' : '✖ DECLINED'}
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border
+                             ${row.review_status === 'Accepted' && !progressDeclined ? 'bg-green-50 text-green-700 border-green-100'
+                              : row.review_status === 'Rejected' || progressDeclined ? 'bg-red-50 text-red-700 border-red-100'
+                                : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
+                            {row.review_status === 'Accepted' && !progressDeclined ? <><IconCheck className="w-3 h-3" /> APPROVED</>
+                              : row.review_status === 'Rejected' ? <><IconWarning className="w-3 h-3" /> DECLINED</>
+                                : progressDeclined ? <><IconWarning className="w-3 h-3" /> UPDATE DECLINED</>
+                                  : 'NO SUBMISSION'}
                           </span>
-                          <button onClick={() => setClearId(row.id)} className="text-[9px] font-black text-slate-300 uppercase tracking-tighter hover:text-slate-500 transition-colors">CLEAR STATUS</button>
+                          {(row.review_status === 'Accepted' || row.review_status === 'Rejected') && (
+                            <button
+                              onClick={() => setClearId({ id: row.id, type: progressDeclined ? 'progress' : 'commitment' })}
+                              className="text-[9px] font-black text-slate-300 uppercase tracking-tighter hover:text-slate-500 transition-colors">
+                              RESET REVIEW
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      {editId === row.id ? (
-                        <span className="text-[9px] font-black text-brand uppercase tracking-tighter animate-pulse">Editing...</span>
-                      ) : (
-                        <button onClick={() => startEdit(row)} className="p-2 text-slate-400 hover:text-brand hover:bg-brand/5 rounded-xl transition-all" title="Edit Commitment & Settings">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                          </svg>
-                        </button>
-                      )}
+                    <td className="px-4 py-4 text-center">
+                      <button onClick={() => setDeleteTarget({ id: row.id, name: row.name })} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all" title="Delete User">
+                        <IconTrash className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -287,21 +339,45 @@ export default function AdminPage() {
       </div>
 
       <DeclineModal
-        isOpen={!!declineId}
-        onClose={() => setDeclineId(null)}
-        onConfirm={(reason) => handleReview(declineId, 'Declined', reason)}
+        isOpen={!!declineTarget}
+        onClose={() => setDeclineTarget(null)}
+        onConfirm={(reason) => handleReview(declineTarget.id, declineTarget.type, 'Rejected', reason)}
         saving={saving}
+      />
+
+      <ConfirmModal
+        isOpen={!!approveTarget}
+        title="Approve this submission?"
+        message={approveTarget?.type === 'progress'
+          ? 'This will confirm the progress update as official and visible.'
+          : 'The employee will be able to start tracking progress right after this.'}
+        confirmText="Approve"
+        cancelText="Cancel"
+        type="primary"
+        onConfirm={() => handleReview(approveTarget.id, approveTarget.type, 'Accepted')}
+        onCancel={() => setApproveTarget(null)}
       />
 
       <ConfirmModal
         isOpen={!!clearId}
         title="Reset Review Status?"
-        message="This will reset the current decision."
-        confirmText="Reset"
+        message="This will reset the review back to 'On Review' so you can re-evaluate this submission."
+        confirmText="Reset to On Review"
         cancelText="Cancel"
         type="warning"
-        onConfirm={() => { handleReview(clearId, 'Pending'); setClearId(null); }}
+        onConfirm={() => { handleReview(clearId.id, clearId.type, 'On Review'); setClearId(null) }}
         onCancel={() => setClearId(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        title="Delete this user?"
+        message={`This permanently removes ${deleteTarget?.name || 'this user'} and their entire commitment history. This cannot be undone.`}
+        confirmText={saving ? 'Deleting...' : 'Delete User'}
+        cancelText="Cancel"
+        type="danger"
+        onConfirm={handleDeleteUser}
+        onCancel={() => setDeleteTarget(null)}
       />
 
       <ConfirmModal
@@ -316,6 +392,131 @@ export default function AdminPage() {
       />
 
       {showGuideline && <AdminGuideline onClose={() => setShowGuideline(false)} />}
+
+      {/* Add User Modal */}
+      {addUserOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setAddUserOpen(false)}>
+          <div className="bg-white rounded-[32px] w-full max-w-md shadow-2xl overflow-hidden border border-slate-200" onClick={e => e.stopPropagation()}>
+            <div className="p-8 space-y-5">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">Add New User</h3>
+                <p className="text-sm text-slate-500 font-medium mt-1">Create a new employee login with a 4-digit PIN.</p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Name</label>
+                  <input
+                    type="text" value={addUserForm.name}
+                    onChange={e => setAddUserForm(f => ({ ...f, name: e.target.value }))}
+                    className="w-full border-2 border-slate-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-4 focus:ring-brand/10 focus:border-brand bg-slate-50 transition-all"
+                    placeholder="Employee full name"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">4-Digit PIN</label>
+                  <input
+                    type="text" inputMode="numeric" maxLength={4} value={addUserForm.pin}
+                    onChange={e => setAddUserForm(f => ({ ...f, pin: e.target.value.replace(/\D/g, '') }))}
+                    className="w-full border-2 border-slate-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-4 focus:ring-brand/10 focus:border-brand bg-slate-50 transition-all"
+                    placeholder="e.g. 1234"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Heart Value / Division</label>
+                  <input
+                    type="text" value={addUserForm.heart_value}
+                    onChange={e => setAddUserForm(f => ({ ...f, heart_value: e.target.value }))}
+                    className="w-full border-2 border-slate-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-4 focus:ring-brand/10 focus:border-brand bg-slate-50 transition-all"
+                    placeholder="e.g. Software Engineering"
+                  />
+                </div>
+                {addUserError && <p className="text-[11px] text-red-500 font-bold bg-red-50 p-2.5 rounded-lg">{addUserError}</p>}
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setAddUserOpen(false)} className="flex-1 py-3.5 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-2xl transition-all">Cancel</button>
+                <button onClick={handleAddUser} disabled={addUserSaving} className="flex-1 py-3.5 bg-brand text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-brand-dark disabled:opacity-50 transition-all shadow-lg">
+                  {addUserSaving ? 'Adding...' : 'Add User'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {historyUserId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={() => setHistoryUserId(null)}>
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-slate-50">
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-sm">Activity & Status History</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                  {data.find(d => d.id === historyUserId)?.name}'s Timeline
+                </p>
+              </div>
+              <button onClick={() => setHistoryUserId(null)} className="text-gray-400 hover:text-gray-600 transition-colors"><IconClose className="w-4 h-4" /></button>
+            </div>
+            <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6">
+              {loadingHistory ? (
+                <div className="text-center py-10 text-slate-400 font-semibold text-xs">Loading history...</div>
+              ) : historyData.length === 0 ? (
+                <div className="text-center py-10 text-slate-350 italic text-xs">No previous submissions found in log.</div>
+              ) : (
+                <div className="space-y-6">
+                  {historyData.map((h, i) => {
+                    const olderEntry = historyData[i + 1]
+                    const isFirstEver = i === historyData.length - 1
+                    const textChanged = isFirstEver || h.commitment_text !== olderEntry?.commitment_text
+                    return (
+                    <div key={h.id || i} className="bg-slate-50/50 rounded-2xl p-5 border border-slate-100 space-y-3 relative">
+                      <div className="flex items-center justify-between">
+                        <StatusBadge status={h.status} />
+                        <div className="text-[10px] font-bold text-slate-400">{new Date(h.created_at).toLocaleString()}</div>
+                      </div>
+                      {textChanged && (
+                        <div>
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                            {isFirstEver ? 'Commitment Text' : 'Commitment Text Revised'}
+                          </span>
+                          <p className="text-xs font-bold leading-relaxed text-slate-800 italic bg-white p-3 rounded-xl border border-slate-100 shadow-sm whitespace-pre-wrap max-h-64 overflow-y-auto">
+                            "{h.commitment_text || '—'}"
+                          </p>
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Action By</span>
+                        <p className="mt-1 text-xs font-black text-slate-700">{h.updated_by_name} ({h.updated_by_role})</p>
+                      </div>
+                      {h.attachment_url && (
+                        <a href={getAssetURL(h.attachment_url)} target="_blank" className="inline-flex items-center gap-1.5 text-[10px] font-black text-brand uppercase tracking-widest hover:text-brand-dark transition-colors">
+                          <IconDocument className="w-3.5 h-3.5" /> View Attachment
+                        </a>
+                      )}
+                      {h.challenges && (
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 mt-2 max-h-64 overflow-y-auto">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Challenges / Obstacles</span>
+                          <p className="text-xs font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">{h.challenges}</p>
+                        </div>
+                      )}
+                      {((h.status === 'REJECTED' || h.status === 'DECLINED' || h.status === 'PROGRESS_REJECTED') && h.measurable_impact) && (
+                        <div className="bg-red-50/40 border border-red-100 rounded-xl p-3.5 mt-2 max-h-64 overflow-y-auto">
+                          <span className="text-[9px] font-black text-red-400 uppercase tracking-widest block mb-1">Decline Comment</span>
+                          <p className="text-xs font-medium text-red-700 leading-relaxed whitespace-pre-wrap">
+                            {h.measurable_impact.replace('Commitment Declined: ', '').replace('Commitment Rejected: ', '').replace('Review Declined: ', '').replace('Progress Update Declined: ', '')}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

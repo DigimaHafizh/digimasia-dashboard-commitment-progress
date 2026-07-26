@@ -48,7 +48,7 @@ export default function LoginPage() {
     try {
       const { data } = await api.post('/auth/login', { pin: fullPin })
       login(data)
-      navigate(data.is_admin ? '/admin' : '/dashboard')
+      navigate(data.is_admin ? '/admin' : '/update')
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid PIN. Please try again.')
     } finally {

@@ -1,16 +1,23 @@
-﻿import { useMemo } from 'react'
+import { useMemo } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { getEffectiveStatus } from '../utils/status'
 
-const COLORS = ['#94A3B8', '#F59E0B', '#10B981']
-const STATUSES = ['Not Started', 'In Progress', 'Achieved']
+// Every possible effective status, so the breakdown always sums to the true total headcount
+const STATUSES = [
+  { name: 'No Submission', color: '#94A3B8' },
+  { name: 'On Review', color: '#3B82F6' },
+  { name: 'Rejected', color: '#EF4444' },
+  { name: 'Accepted', color: '#A855F7' },
+  { name: 'In Progress', color: '#F59E0B' },
+  { name: 'Achieved', color: '#10B981' },
+]
 
 export default function SummaryStats({ data }) {
   const employees = useMemo(() => data.filter(d => !d.is_admin), [data])
 
-  // Filter stats to only show the 3 main statuses (removing 'In Review')
   const stats = useMemo(() => STATUSES.map(s => ({
-    name: s,
-    value: employees.filter(d => d.status === s).length
+    ...s,
+    value: employees.filter(d => getEffectiveStatus(d) === s.name).length
   })), [employees])
 
   const total = employees.length
@@ -30,11 +37,11 @@ export default function SummaryStats({ data }) {
               <Pie
                 data={stats} cx="50%" cy="50%"
                 innerRadius={70} outerRadius={100}
-                paddingAngle={stats.filter(s => s.value > 0).length > 1 ? 8 : 0}
+                paddingAngle={stats.filter(s => s.value > 0).length > 1 ? 4 : 0}
                 dataKey="value"
                 stroke="none"
               >
-                {stats.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
+                {stats.map((s, i) => <Cell key={i} fill={s.color} />)}
               </Pie>
               <Tooltip
                 contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)', padding: '12px 16px' }}
@@ -50,31 +57,29 @@ export default function SummaryStats({ data }) {
         </div>
       </div>
 
-      {/* Detailed Breakdown Grid - Adjusted for 3 cards */}
-      <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-6">
-        {stats.map((s, i) => (
-          <div key={s.name} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
-            <div className="space-y-4">
+      {/* Detailed Breakdown Grid — all 6 effective statuses */}
+      <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-4">
+        {stats.map(s => (
+          <div key={s.name} className="bg-white rounded-2xl p-5 border border-slate-200 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${COLORS[i]}15` }}>
-                  <div className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ backgroundColor: COLORS[i] }} />
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${s.color}15` }}>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
                 </div>
               </div>
 
               <div>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] block mb-1">{s.name}</span>
-                <p className="text-4xl font-black text-slate-800 tracking-tighter">{s.value}</p>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] block mb-1">{s.name}</span>
+                <p className="text-3xl font-black text-slate-800 tracking-tighter">{s.value}</p>
               </div>
             </div>
 
-            <div className="mt-8 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-slate-500 uppercase">{total ? Math.round(s.value / total * 100) : 0}% Engagement Level</span>
-              </div>
-              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-50">
+            <div className="mt-5 space-y-2">
+              <span className="text-[9px] font-black text-slate-500 uppercase">{total ? Math.round(s.value / total * 100) : 0}%</span>
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-50">
                 <div
                   className="h-full rounded-full transition-all duration-1000 ease-out shadow-sm"
-                  style={{ width: `${total ? (s.value / total) * 100 : 0}%`, backgroundColor: COLORS[i] }}
+                  style={{ width: `${total ? (s.value / total) * 100 : 0}%`, backgroundColor: s.color }}
                 />
               </div>
             </div>

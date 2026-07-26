@@ -1,4 +1,5 @@
 import React from 'react';
+import { IconWave, IconSparkles } from './icons';
 
 /**
  * ConfirmModal - A premium confirmation dialog
@@ -27,9 +28,9 @@ export default function ConfirmModal({
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
                 <div className="p-8 text-center bg-white relative">
-                    <div className={`w-12 h-12 rounded-xl mx-auto flex items-center justify-center text-2xl mb-6 shadow-sm
+                    <div className={`w-12 h-12 rounded-xl mx-auto flex items-center justify-center mb-6 shadow-sm
                         ${type === 'danger' ? 'bg-red-50 text-red-500' : 'bg-brand/5 text-brand'}`}>
-                        {type === 'danger' ? '👋' : '✨'}
+                        {type === 'danger' ? <IconWave className="w-6 h-6" /> : <IconSparkles className="w-6 h-6" />}
                     </div>
                     <div className="space-y-2">
                         <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none">{title}</h3>

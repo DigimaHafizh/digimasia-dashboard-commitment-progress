@@ -6,17 +6,20 @@ CREATE TABLE IF NOT EXISTS users (
   is_admin     BOOLEAN       DEFAULT FALSE,
   is_hidden    BOOLEAN       DEFAULT FALSE,
   heart_value  VARCHAR(100),                     -- e.g. Harmony, Excellence, etc.
-  review_reason VARCHAR(20),                     -- NOT_MEASURABLE | TOO_OPTIMISTIC | NEW_USER | NULL
+  review_status VARCHAR(20),                      -- On Review | Accepted | Rejected | NULL (no submission yet) — gates the INITIAL COMMITMENT only
+  review_reason TEXT,                              -- free-text Admin review comment (required when Rejected)
   initial_commitment TEXT,
   measurable_impact  TEXT,
-  challenges         TEXT,                        -- private, never sent to public dashboard
-  status       VARCHAR(20)   DEFAULT 'Not Started',
+  challenges         TEXT,                        -- private, admin-only
+  status       VARCHAR(20),                        -- In Progress | Achieved | NULL (only settable once review_status = 'Accepted')
+  progress_status  VARCHAR(20),                    -- On Review | Rejected | NULL — gates each PROGRESS UPDATE (separate from review_status)
+  progress_review_reason TEXT,                     -- free-text Admin comment when a progress update is declined
   created_at   TIMESTAMPTZ   DEFAULT NOW(),
   updated_at   TIMESTAMPTZ   DEFAULT NOW()
 );
 
 
--- Progress log (append-only audit trail)
+-- Progress log (append-only audit trail: submissions, progress updates, admin review decisions)
 CREATE TABLE IF NOT EXISTS progress_log (
   id           SERIAL PRIMARY KEY,
   user_id      INT REFERENCES users(id) ON DELETE CASCADE,
@@ -25,18 +28,7 @@ CREATE TABLE IF NOT EXISTS progress_log (
   challenges        TEXT,
   updated_by_name   VARCHAR(200),
   updated_by_role   VARCHAR(50),
+  attachment_url    TEXT,
   commitment_text   TEXT,
   created_at   TIMESTAMPTZ DEFAULT NOW()
-);
-
-
--- Commitment revisions by admin
-CREATE TABLE IF NOT EXISTS commitment_revisions (
-  id              SERIAL PRIMARY KEY,
-  user_id         INT REFERENCES users(id) ON DELETE CASCADE,
-  old_commitment  TEXT,
-  new_commitment  TEXT,
-  admin_id        INT REFERENCES users(id),
-  admin_name      VARCHAR(200),
-  revised_at      TIMESTAMPTZ DEFAULT NOW()
 );

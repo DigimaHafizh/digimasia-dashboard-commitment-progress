@@ -10,39 +10,45 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true })
 }
 
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).slice(0, 10)
+    const safeBase = path.basename(file.originalname, path.extname(file.originalname))
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .slice(0, 60)
+    cb(null, `${Date.now()}-${safeBase}${ext}`)
+  }
 })
-const upload = multer({ storage })
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      return cb(new Error('Unsupported file type. Only PDF, DOC/DOCX, and images are allowed.'))
+    }
+    cb(null, true)
+  }
+})
 
 const router = Router()
 
-// Public dashboard — no challenges field, no admin accounts
-router.get('/', authMiddleware, async (req, res) => {
-  try {
-    const { rows } = await pool.query(`
-      SELECT id, name, heart_value, initial_commitment, measurable_impact, status, review_reason, review_status
-      FROM users
-      WHERE is_admin = false AND (is_hidden = false OR is_hidden IS NULL)
-      ORDER BY name ASC
-    `)
-    res.json(rows)
-  } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
-})
+// Valid progress statuses (v2.1: removed 'Not Started')
+const VALID_STATUSES = ['In Progress', 'Achieved']
 
-
-// Get my own commitment (with challenges)
+// Get my own commitment (with challenges + admin review comment)
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id])
     const user = rows[0]
-    // Fetch latest admin revision banner
-    const rev = await pool.query(`
-      SELECT admin_name, revised_at FROM commitment_revisions
-      WHERE user_id = $1 ORDER BY revised_at DESC LIMIT 1
-    `, [req.user.id])
-    user.admin_revision_banner = rev.rows[0] ?? null
     res.json(user)
   } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
 })
@@ -57,32 +63,80 @@ router.get('/me/history', authMiddleware, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
 })
 
-// Update my progress
+// Update my progress (v2.1 rules)
 router.patch('/me', authMiddleware, upload.single('attachment'), async (req, res) => {
   const { status, challenges, measurable_impact, initial_commitment } = req.body
   try {
-    const { rows: currentRows } = await pool.query('SELECT status, initial_commitment FROM users WHERE id = $1', [req.user.id])
+    const { rows: currentRows } = await pool.query(
+      'SELECT status, initial_commitment, review_status, progress_status FROM users WHERE id = $1',
+      [req.user.id]
+    )
     const cur = currentRows[0]
-    const targetStatus = status
-    const targetCommitment = initial_commitment || cur.initial_commitment
 
-    const setFields = []
+    // --- NEW COMMITMENT SUBMISSION (first time or after Rejection) ---
+    if (initial_commitment !== undefined && initial_commitment.trim()) {
+      // Only allow submission when: no commitment exists yet OR status is Rejected
+      const canSubmitCommitment = !cur.initial_commitment?.trim() || cur.review_status === 'Rejected'
+      if (!canSubmitCommitment) {
+        return res.status(403).json({
+          message: 'Commitment cannot be changed while On Review or Accepted.'
+        })
+      }
+
+      await pool.query(
+        `UPDATE users SET initial_commitment=$1, review_status='On Review', review_reason=NULL, status=NULL, updated_at=NOW() WHERE id=$2`,
+        [initial_commitment.trim(), req.user.id]
+      )
+      await pool.query(
+        `INSERT INTO progress_log (user_id, status, measurable_impact, challenges, updated_by_name, updated_by_role, commitment_text)
+         VALUES ($1,'ON_REVIEW','Commitment submitted for review.',NULL,$2,'You',$3)`,
+        [req.user.id, req.user.name, initial_commitment.trim()]
+      )
+      return res.json({ message: 'Commitment submitted! Waiting for Admin review.' })
+    }
+
+    // --- PROGRESS UPDATE (only allowed when commitment Accepted, and no update already pending) ---
+    if (cur.review_status !== 'Accepted') {
+      return res.status(403).json({
+        message: 'Progress updates are only allowed after your commitment is Accepted by an Admin.'
+      })
+    }
+    if (cur.progress_status === 'On Review') {
+      return res.status(403).json({
+        message: 'Your last progress update is still awaiting Admin review.'
+      })
+    }
+
+    if (status && !VALID_STATUSES.includes(status)) {
+      return res.status(400).json({ message: `Invalid status. Allowed: ${VALID_STATUSES.join(', ')}` })
+    }
+
+    const setFields = [`progress_status = 'On Review'`, `progress_review_reason = NULL`]
     const vals = []
     let idx = 1
     if (status) { setFields.push(`status = $${idx++}`); vals.push(status) }
     if (measurable_impact !== undefined) { setFields.push(`measurable_impact = $${idx++}`); vals.push(measurable_impact) }
-    if (initial_commitment !== undefined) { setFields.push(`initial_commitment = $${idx++}`); vals.push(initial_commitment) }
     setFields.push(`updated_at = NOW()`)
     vals.push(req.user.id)
     await pool.query(`UPDATE users SET ${setFields.join(', ')} WHERE id = $${idx}`, vals)
-    // Append to progress log
+
+    // Log progress update (pending Admin approval)
     await pool.query(
       `INSERT INTO progress_log
        (user_id, status, measurable_impact, challenges, updated_by_name, updated_by_role, attachment_url, commitment_text)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [req.user.id, targetStatus || cur.status, measurable_impact ?? null, challenges ?? null, req.user.name, 'You', req.file ? `/uploads/${req.file.filename}` : null, targetCommitment]
+      [
+        req.user.id,
+        status || cur.status,
+        measurable_impact ?? null,
+        challenges ?? null,
+        req.user.name,
+        'You',
+        req.file ? `/uploads/${req.file.filename}` : null,
+        cur.initial_commitment
+      ]
     )
-    res.json({ message: 'Progress updated successfully' })
+    res.json({ message: 'Progress update submitted! Waiting for Admin review.' })
   } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
 })
 

@@ -1,4 +1,5 @@
 import React from 'react'
+import { IconWarning } from './icons'
 
 export default function DeclineModal({ isOpen, onClose, onConfirm, saving }) {
     const [reason, setReason] = React.useState('')
@@ -17,25 +18,28 @@ export default function DeclineModal({ isOpen, onClose, onConfirm, saving }) {
             >
                 <div className="p-8 space-y-6">
                     <div className="space-y-2">
-                        <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-2xl mb-4">
-                            🚫
+                        <div className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-4">
+                            <IconWarning className="w-6 h-6" />
                         </div>
-                        <h3 className="text-xl font-black text-slate-900 tracking-tight">Decline Update?</h3>
+                        <h3 className="text-xl font-black text-slate-900 tracking-tight">Decline Submission?</h3>
                         <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                            Please provide a reason for declining this progress update. This will be shared with the employee to help them improve.
+                            Please leave a <strong>review comment</strong> for the employee explaining why this is being declined. This comment will be shown directly to them so they can revise and resubmit.
                         </p>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Decline Reason</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                            Review Comment <span className="text-red-400">*Required</span>
+                        </label>
                         <textarea
                             value={reason}
                             onChange={e => setReason(e.target.value)}
                             rows={4}
-                            placeholder="e.g. Please provide more clear metrics or actual proof documents..."
+                            placeholder="e.g. Your commitment needs clearer, measurable targets. Please specify the metric you plan to achieve within 6 months..."
                             className="w-full border-2 border-slate-100 rounded-2xl p-4 text-sm focus:outline-none focus:ring-4 focus:ring-red-500/10 focus:border-red-500 bg-slate-50 transition-all resize-none shadow-inner"
                             autoFocus
                         />
+                        {!reason.trim() && <p className="text-[10px] text-red-400 font-bold">A review comment is required before you can decline.</p>}
                     </div>
 
                     <div className="flex gap-3 pt-2">
@@ -51,7 +55,7 @@ export default function DeclineModal({ isOpen, onClose, onConfirm, saving }) {
                             disabled={saving || !reason.trim()}
                             className="flex-1 py-3.5 bg-red-500 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-red-600 disabled:opacity-50 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-lg shadow-red-200"
                         >
-                            {saving ? 'Processing...' : 'Confirm Decline'}
+                            {saving ? 'Processing...' : 'Decline & Send Comment'}
                         </button>
                     </div>
                 </div>

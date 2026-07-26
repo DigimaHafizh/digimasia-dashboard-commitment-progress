@@ -58,7 +58,7 @@ async function seed() {
         const __dirname = path.dirname(__filename);
 
         // Read Excel File
-        const excelPath = path.join(__dirname, '../../../frontend/src/asset/Commitment_Progress_Report.xlsx');
+        const excelPath = path.join(__dirname, '../../seed-data/Commitment_Progress_Report.xlsx');
         const wb = xlsx.readFile(excelPath);
         const ws = wb.Sheets['KOMITMEN 2026'] || wb.Sheets[wb.SheetNames[0]];
         const sheetData = xlsx.utils.sheet_to_json(ws);
@@ -95,7 +95,7 @@ async function seed() {
         }
 
         // Read PIN Excel File
-        const pinExcelPath = path.join(__dirname, '../../../frontend/src/asset/Data_PIN_Karyawan_Digimasia_v2.xlsx');
+        const pinExcelPath = path.join(__dirname, '../../seed-data/Data_PIN_Karyawan_Digimasia_v2.xlsx');
         const pinWb = xlsx.readFile(pinExcelPath);
         const pinWs = pinWb.Sheets[pinWb.SheetNames[0]];
         const pinData = xlsx.utils.sheet_to_json(pinWs);

@@ -1,26 +1,57 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import api from '../utils/api'
+import { useAuth } from '../context/AuthContext'
 import StatusBadge from './StatusBadge'
 
 export default function NotificationBell() {
+    const { user } = useAuth()
     const [history, setHistory] = useState([])
     const [open, setOpen] = useState(false)
+    const [hasUnseen, setHasUnseen] = useState(false)
+    const containerRef = useRef(null)
+
+    const storageKey = `notif_last_seen_${user?.id}`
 
     useEffect(() => {
         // Only fetch once or when opened, ideally. For now, fetch once on mount.
-        api.get('/commitments/me/history').then(r => setHistory(r.data)).catch(() => { })
+        api.get('/commitments/me/history').then(r => {
+            setHistory(r.data)
+            const latest = r.data[0]?.created_at
+            const lastSeen = localStorage.getItem(storageKey)
+            setHasUnseen(!!latest && latest !== lastSeen)
+        }).catch(() => { })
     }, [])
 
+    useEffect(() => {
+        if (!open) return
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setOpen(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [open])
+
+    const handleToggle = () => {
+        const next = !open
+        setOpen(next)
+        if (next && history[0]?.created_at) {
+            localStorage.setItem(storageKey, history[0].created_at)
+            setHasUnseen(false)
+        }
+    }
+
     return (
-        <div className="relative">
+        <div className="relative" ref={containerRef}>
             <button
-                onClick={() => setOpen(!open)}
+                onClick={handleToggle}
                 className="relative p-2 text-white/80 hover:text-white transition rounded-full hover:bg-white/10 focus:outline-none"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
                 </svg>
-                {history.length > 0 && (
+                {hasUnseen && (
                     <span className="absolute top-1.5 right-2 w-2 h-2 bg-warning rounded-full border border-brand"></span>
                 )}
             </button>

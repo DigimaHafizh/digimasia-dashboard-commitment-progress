@@ -89,7 +89,7 @@ export default function ActivityModal({ item, onClose }) {
 
                             {item.challenges && (
                                 <div>
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Obstacles Encountered</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Deskripsi Progress</span>
                                     <p className="mt-1.5 font-medium text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100 leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">
                                         {item.challenges}
                                     </p>

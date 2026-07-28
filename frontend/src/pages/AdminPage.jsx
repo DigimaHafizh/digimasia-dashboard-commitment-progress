@@ -10,7 +10,15 @@ import AdminGuideline from '../components/AdminGuideline'
 import { getEffectiveStatus, getStatusPriority } from '../utils/status'
 import { IconWave, IconDownload, IconHistory, IconDocument, IconCheck, IconWarning, IconClose, IconClock, IconTrash, IconPlus } from '../components/icons'
 
-const STATUSES = ['All', 'No Submission', 'On Review', 'Accepted', 'In Progress', 'Achieved', 'Rejected']
+const STATUSES = [
+  { value: 'All', label: 'All' },
+  { value: 'No Submission', label: 'No Submission' },
+  { value: 'On Review', label: 'On Review' },
+  { value: 'Accepted', label: 'Approved' },
+  { value: 'Rejected', label: 'Declined' },
+  { value: 'In Progress', label: 'In Progress' },
+  { value: 'Achieved', label: 'Achieved' },
+]
 
 export default function AdminPage() {
   const { user, logout } = useAuth()
@@ -55,10 +63,10 @@ export default function AdminPage() {
         { header: 'No', key: 'no' },
         { header: 'Name', key: 'name' },
         { header: 'Division/Heart Value', key: 'heart_value' },
-        { header: 'Commitment', key: 'commitment' },
+        { header: 'My Commitment', key: 'commitment' },
         { header: 'Status', key: 'status' },
         { header: 'Review Status', key: 'review_status' },
-        { header: 'Latest Challenges', key: 'challenges' },
+        { header: 'Deskripsi Progress', key: 'challenges' },
         { header: 'Measurable Impact', key: 'impact' },
         { header: 'Attachment', key: 'attachment' },
       ],
@@ -68,7 +76,7 @@ export default function AdminPage() {
         heart_value: row.heart_value || '—',
         commitment: row.initial_commitment || 'No commitment submitted yet.',
         status: getEffectiveStatus(row),
-        review_status: row.review_status || 'No Submission',
+        review_status: row.review_status === 'Accepted' ? 'Approved' : row.review_status === 'Rejected' ? 'Declined' : (row.review_status || 'No Submission'),
         challenges: row.latest_challenges || '—',
         impact: row.measurable_impact || '—',
         attachment: row.latest_attachment_url
@@ -193,7 +201,7 @@ export default function AdminPage() {
             value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
           >
-            {STATUSES.map(s => <option key={s}>{s}</option>)}
+            {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </div>
 
@@ -240,7 +248,7 @@ export default function AdminPage() {
                   <th className="px-4 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest min-w-[220px]">Commitment</th>
                   <th className="px-4 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest w-24">Attachment</th>
                   <th className="px-4 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest w-28">Status</th>
-                  <th className="px-4 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest min-w-[160px] max-w-[220px]">Obstacles</th>
+                  <th className="px-4 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest min-w-[160px] max-w-[220px]">Deskripsi Progress</th>
                   <th className="px-4 py-4 text-center font-black text-slate-400 uppercase text-[10px] tracking-widest w-48">Review Action</th>
                   <th className="px-4 py-4 text-center font-black text-slate-400 uppercase text-[10px] tracking-widest w-14">Delete</th>
                 </tr>
@@ -496,7 +504,7 @@ export default function AdminPage() {
                       )}
                       {h.challenges && (
                         <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 mt-2 max-h-64 overflow-y-auto">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Challenges / Obstacles</span>
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Deskripsi Progress</span>
                           <p className="text-xs font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">{h.challenges}</p>
                         </div>
                       )}

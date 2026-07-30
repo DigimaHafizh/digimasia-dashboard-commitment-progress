@@ -26,9 +26,14 @@ const allowedOrigins = [
     'https://digimasia-dashboard-commitment-progress.vercel.app'
 ].filter(Boolean);
 
+// Matches http(s)://<private-LAN-ip>:<port>, e.g. 192.168.x.x, 10.x.x.x, 172.16-31.x.x —
+// so teammates on the same office/home WiFi can reach the dev server directly.
+const isLocalNetworkOrigin = (origin) =>
+    /^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(origin);
+
 app.use(cors({
     origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || origin.includes('ngrok-free')) {
+        if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || origin.includes('ngrok-free') || isLocalNetworkOrigin(origin)) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));

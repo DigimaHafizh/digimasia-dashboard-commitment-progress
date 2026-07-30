@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { IconShield, IconClock, IconDocument, IconTools, IconCheckCircle, IconWarning, IconRefresh, IconDownload, IconArrowLeft, IconArrowRight } from './icons'
+import { IconShield, IconClock, IconDocument, IconTools, IconCheckCircle, IconWarning, IconDownload, IconArrowLeft, IconArrowRight } from './icons'
 
 const STEPS = [
     {
@@ -9,8 +9,8 @@ const STEPS = [
     },
     {
         Icon: IconClock,
-        title: 'Filter "On Review"',
-        desc: 'Gunakan tab "On Review" untuk mengisolasi komitmen baru atau hasil resubmit yang sedang menunggu keputusanmu, lengkap dengan badge jumlahnya.',
+        title: 'Cari Komitmen yang Perlu Direview',
+        desc: 'Gunakan Search bar atau dropdown filter status — pilih "On Review" untuk mengisolasi komitmen baru atau hasil resubmit yang sedang menunggu keputusanmu.',
     },
     {
         Icon: IconDocument,
@@ -33,11 +33,6 @@ const STEPS = [
         desc: 'Klik "Decline" jika perlu perbaikan. Kamu wajib mengisi komentar — karyawan akan melihatnya dan bisa merevisi lalu submit ulang.',
     },
     {
-        Icon: IconRefresh,
-        title: 'Reset Review',
-        desc: 'Gunakan tombol "RESET REVIEW" jika ingin membatalkan keputusan Approve/Decline dan mengembalikan submission ke status "On Review".',
-    },
-    {
         Icon: IconDownload,
         title: 'Export Laporan',
         desc: 'Gunakan tombol "Export Commitments" di bagian atas tabel untuk mengunduh laporan Excel seluruh komitmen dan status karyawan.',
@@ -45,7 +40,7 @@ const STEPS = [
     {
         Icon: IconTools,
         title: 'Kelola User',
-        desc: 'Gunakan tombol "Add User" untuk menambah karyawan baru (nama + PIN 4 digit), atau ikon tempat sampah di tiap baris untuk menghapus user beserta seluruh riwayatnya.',
+        desc: 'Klik tombol "Manage Users" untuk menambah karyawan baru (nama + PIN 4 digit) atau menghapus user beserta seluruh riwayatnya — semua dalam satu menu.',
     },
 ]
 

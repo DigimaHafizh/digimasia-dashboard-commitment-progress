@@ -89,10 +89,6 @@ For a production install (company server), see **[DEPLOYMENT.md](./DEPLOYMENT.md
 6. **Admin Panel** — one page for everything: summary chart, search/filter across all
    employees, the On Review queue, and Add/Delete User management.
 
-See [`commitment-progress-dashboard_v2.1.md`](./commitment-progress-dashboard_v2.1.md) for
-the original PRD (note: some later decisions in this README/DEPLOYMENT.md — e.g. progress
-updates requiring review, removing the public dashboard — supersede it).
-
 ---
 
 ## Project Structure

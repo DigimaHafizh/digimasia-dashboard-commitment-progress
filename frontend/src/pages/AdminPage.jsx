@@ -8,7 +8,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import DeclineModal from '../components/DeclineModal'
 import AdminGuideline from '../components/AdminGuideline'
 import { getEffectiveStatus, getStatusPriority } from '../utils/status'
-import { IconWave, IconDownload, IconHistory, IconDocument, IconCheck, IconWarning, IconClose, IconClock, IconTrash, IconPlus } from '../components/icons'
+import { IconWave, IconDownload, IconHistory, IconDocument, IconCheck, IconWarning, IconClose, IconTrash, IconPlus, IconUsers } from '../components/icons'
 
 const STATUSES = [
   { value: 'All', label: 'All' },
@@ -25,19 +25,17 @@ export default function AdminPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [data, setData] = useState([])
-  const [filter, setFilter] = useState('All')
   const [saving, setSaving] = useState(false)
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
   const [declineTarget, setDeclineTarget] = useState(null) // { id, type: 'commitment' | 'progress' }
   const [approveTarget, setApproveTarget] = useState(null) // { id, type: 'commitment' | 'progress' }
-  const [clearId, setClearId] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null) // { id, name }
   const [showGuideline, setShowGuideline] = useState(false)
   const [historyUserId, setHistoryUserId] = useState(null)
   const [historyData, setHistoryData] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(false)
-  const [autoFilterApplied, setAutoFilterApplied] = useState(false)
-  const [addUserOpen, setAddUserOpen] = useState(false)
+  const [manageUsersOpen, setManageUsersOpen] = useState(false)
+  const [manageUserSearch, setManageUserSearch] = useState('')
   const [addUserForm, setAddUserForm] = useState({ name: '', pin: '', heart_value: '' })
   const [addUserError, setAddUserError] = useState('')
   const [addUserSaving, setAddUserSaving] = useState(false)
@@ -91,18 +89,7 @@ export default function AdminPage() {
 
   const visibleData = data.filter(d => !d.is_admin)
 
-  const isPending = (d) => d.review_status === 'On Review' || (d.review_status === 'Accepted' && d.progress_status === 'On Review')
-  const onReviewCount = visibleData.filter(isPending).length
-
-  // Land admins straight on the review queue when one exists, instead of the full alphabetical list
-  useEffect(() => {
-    if (!autoFilterApplied && data.length > 0) {
-      if (onReviewCount > 0) setFilter('On Review')
-      setAutoFilterApplied(true)
-    }
-  }, [data, autoFilterApplied, onReviewCount])
-
-  const filtered = (filter === 'On Review' ? visibleData.filter(isPending) : visibleData)
+  const filtered = visibleData
     .filter(d => statusFilter === 'All' || getEffectiveStatus(d) === statusFilter)
     .filter(d => d.name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => getStatusPriority(a) - getStatusPriority(b) || a.name.localeCompare(b.name))
@@ -152,7 +139,6 @@ export default function AdminPage() {
     setAddUserSaving(true)
     try {
       await api.post('/admin/users', addUserForm)
-      setAddUserOpen(false)
       setAddUserForm({ name: '', pin: '', heart_value: '' })
       fetchData()
     } catch (e) {
@@ -205,30 +191,12 @@ export default function AdminPage() {
           </select>
         </div>
 
-        {/* Filter Tabs & Actions */}
+        {/* Actions */}
         <div className="flex flex-wrap gap-3 items-center w-full">
-          {/* View filters */}
           <div className="flex flex-wrap gap-2">
-            {['All', 'On Review'].map(f => (
-              <button key={f} onClick={() => setFilter(f)}
-                className={`inline-flex items-center px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
-                  ${filter === f ? 'bg-brand-dark text-white shadow-xl ring-4 ring-brand/10' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200'}`}>
-                {f === 'On Review' ? <><IconClock className="w-3.5 h-3.5 mr-1.5" /> On Review</> : f}
-                {f === 'On Review' && (
-                  <span className="ml-2 bg-yellow-500 text-white text-[10px] px-2 py-0.5 rounded-full">{onReviewCount}</span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* Divider separating view filters from one-off actions */}
-          <div className="hidden sm:block w-px h-8 bg-slate-300/70 mx-1" />
-
-          {/* Actions */}
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setAddUserOpen(true)}
+            <button onClick={() => setManageUsersOpen(true)}
               className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-brand text-white hover:bg-brand-dark shadow-md transition-all flex items-center gap-2">
-              <IconPlus className="w-3.5 h-3.5" /> Add User
+              <IconUsers className="w-3.5 h-3.5" /> Manage Users
             </button>
             <button onClick={handleExportExcel}
               className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-100 transition-all flex items-center gap-2">
@@ -250,7 +218,6 @@ export default function AdminPage() {
                   <th className="px-4 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest w-28">Status</th>
                   <th className="px-4 py-4 text-left font-black text-slate-400 uppercase text-[10px] tracking-widest min-w-[160px] max-w-[220px]">Deskripsi Progress</th>
                   <th className="px-4 py-4 text-center font-black text-slate-400 uppercase text-[10px] tracking-widest w-48">Review Action</th>
-                  <th className="px-4 py-4 text-center font-black text-slate-400 uppercase text-[10px] tracking-widest w-14">Delete</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -322,20 +289,8 @@ export default function AdminPage() {
                                 : progressDeclined ? <><IconWarning className="w-3 h-3" /> UPDATE DECLINED</>
                                   : 'NO SUBMISSION'}
                           </span>
-                          {(row.review_status === 'Accepted' || row.review_status === 'Rejected') && (
-                            <button
-                              onClick={() => setClearId({ id: row.id, type: progressDeclined ? 'progress' : 'commitment' })}
-                              className="text-[9px] font-black text-slate-300 uppercase tracking-tighter hover:text-slate-500 transition-colors">
-                              RESET REVIEW
-                            </button>
-                          )}
                         </div>
                       )}
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <button onClick={() => setDeleteTarget({ id: row.id, name: row.name })} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all" title="Delete User">
-                        <IconTrash className="w-4 h-4" />
-                      </button>
                     </td>
                   </tr>
                   )
@@ -367,17 +322,6 @@ export default function AdminPage() {
       />
 
       <ConfirmModal
-        isOpen={!!clearId}
-        title="Reset Review Status?"
-        message="This will reset the review back to 'On Review' so you can re-evaluate this submission."
-        confirmText="Reset to On Review"
-        cancelText="Cancel"
-        type="warning"
-        onConfirm={() => { handleReview(clearId.id, clearId.type, 'On Review'); setClearId(null) }}
-        onCancel={() => setClearId(null)}
-      />
-
-      <ConfirmModal
         isOpen={!!deleteTarget}
         title="Delete this user?"
         message={`This permanently removes ${deleteTarget?.name || 'this user'} and their entire commitment history. This cannot be undone.`}
@@ -401,53 +345,74 @@ export default function AdminPage() {
 
       {showGuideline && <AdminGuideline onClose={() => setShowGuideline(false)} />}
 
-      {/* Add User Modal */}
-      {addUserOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setAddUserOpen(false)}>
-          <div className="bg-white rounded-[32px] w-full max-w-md shadow-2xl overflow-hidden border border-slate-200" onClick={e => e.stopPropagation()}>
-            <div className="p-8 space-y-5">
+      {/* Manage Users Modal — add + delete, one place */}
+      {manageUsersOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={() => setManageUsersOpen(false)}>
+          <div className="bg-white rounded-[32px] w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-8 pt-8">
               <div>
-                <h3 className="text-xl font-black text-slate-900 tracking-tight">Add New User</h3>
-                <p className="text-sm text-slate-500 font-medium mt-1">Create a new employee login with a 4-digit PIN.</p>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">Manage Users</h3>
+                <p className="text-sm text-slate-500 font-medium mt-1">Add new employees or remove existing ones.</p>
               </div>
+              <button onClick={() => setManageUsersOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors"><IconClose className="w-5 h-5" /></button>
+            </div>
 
-              <div className="space-y-3">
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Name</label>
-                  <input
-                    type="text" value={addUserForm.name}
-                    onChange={e => setAddUserForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full border-2 border-slate-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-4 focus:ring-brand/10 focus:border-brand bg-slate-50 transition-all"
-                    placeholder="Employee full name"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">4-Digit PIN</label>
-                  <input
-                    type="text" inputMode="numeric" maxLength={4} value={addUserForm.pin}
-                    onChange={e => setAddUserForm(f => ({ ...f, pin: e.target.value.replace(/\D/g, '') }))}
-                    className="w-full border-2 border-slate-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-4 focus:ring-brand/10 focus:border-brand bg-slate-50 transition-all"
-                    placeholder="e.g. 1234"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Heart Value / Division</label>
-                  <input
-                    type="text" value={addUserForm.heart_value}
-                    onChange={e => setAddUserForm(f => ({ ...f, heart_value: e.target.value }))}
-                    className="w-full border-2 border-slate-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-4 focus:ring-brand/10 focus:border-brand bg-slate-50 transition-all"
-                    placeholder="e.g. Software Engineering"
-                  />
-                </div>
-                {addUserError && <p className="text-[11px] text-red-500 font-bold bg-red-50 p-2.5 rounded-lg">{addUserError}</p>}
+            {/* Add New User */}
+            <div className="px-8 pt-6 space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Add New User</label>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text" value={addUserForm.name}
+                  onChange={e => setAddUserForm(f => ({ ...f, name: e.target.value }))}
+                  className="col-span-2 border-2 border-slate-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-4 focus:ring-brand/10 focus:border-brand bg-slate-50 transition-all"
+                  placeholder="Employee full name"
+                />
+                <input
+                  type="text" inputMode="numeric" maxLength={4} value={addUserForm.pin}
+                  onChange={e => setAddUserForm(f => ({ ...f, pin: e.target.value.replace(/\D/g, '') }))}
+                  className="border-2 border-slate-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-4 focus:ring-brand/10 focus:border-brand bg-slate-50 transition-all"
+                  placeholder="4-digit PIN"
+                />
+                <input
+                  type="text" value={addUserForm.heart_value}
+                  onChange={e => setAddUserForm(f => ({ ...f, heart_value: e.target.value }))}
+                  className="border-2 border-slate-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-4 focus:ring-brand/10 focus:border-brand bg-slate-50 transition-all"
+                  placeholder="Heart Value / Division"
+                />
               </div>
+              {addUserError && <p className="text-[11px] text-red-500 font-bold bg-red-50 p-2.5 rounded-lg">{addUserError}</p>}
+              <button onClick={handleAddUser} disabled={addUserSaving} className="w-full py-3 bg-brand text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-brand-dark disabled:opacity-50 transition-all shadow-md flex items-center justify-center gap-2">
+                <IconPlus className="w-3.5 h-3.5" /> {addUserSaving ? 'Adding...' : 'Add User'}
+              </button>
+            </div>
 
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setAddUserOpen(false)} className="flex-1 py-3.5 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-2xl transition-all">Cancel</button>
-                <button onClick={handleAddUser} disabled={addUserSaving} className="flex-1 py-3.5 bg-brand text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-brand-dark disabled:opacity-50 transition-all shadow-lg">
-                  {addUserSaving ? 'Adding...' : 'Add User'}
-                </button>
-              </div>
+            <div className="h-px bg-slate-100 mx-8 mt-6" />
+
+            {/* Existing Users — search + delete */}
+            <div className="px-8 pt-4 pb-2">
+              <input
+                type="text" placeholder="Search users to remove..." value={manageUserSearch}
+                onChange={e => setManageUserSearch(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+              />
+            </div>
+            <div className="px-8 pb-8 overflow-y-auto flex-1 space-y-1">
+              {visibleData
+                .filter(u => u.name.toLowerCase().includes(manageUserSearch.toLowerCase()))
+                .map(u => (
+                  <div key={u.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-slate-50 last:border-0">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-800 truncate">{u.name}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">PIN {u.pin} {u.heart_value ? `· ${u.heart_value}` : ''}</p>
+                    </div>
+                    <button onClick={() => setDeleteTarget({ id: u.id, name: u.name })} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all flex-shrink-0" title="Delete User">
+                      <IconTrash className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              {visibleData.filter(u => u.name.toLowerCase().includes(manageUserSearch.toLowerCase())).length === 0 && (
+                <p className="text-center py-6 text-slate-300 text-xs italic font-medium">No users found.</p>
+              )}
             </div>
           </div>
         </div>

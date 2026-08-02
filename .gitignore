@@ -1,0 +1,12 @@
+﻿node_modules
+.env
+dist
+build
+.DS_Store
+*.log
+
+# Runtime-uploaded evidence and raw seed/export data — never commit real employee data
+backend/uploads/
+backend/seed-data/
+Uploaded_Evidence/
+*.xlsx

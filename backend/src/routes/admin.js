@@ -101,6 +101,16 @@ router.patch('/progress/:id', async (req, res) => {
       // Clear commitment and progress status in active table
       setFields.push(`initial_commitment = NULL`)
       setFields.push(`status = NULL`)
+
+      // Lock resubmission after the 3rd decline; only an Admin can unlock it again
+      const { rows: declineRows } = await pool.query(
+        `SELECT COUNT(*) FROM progress_log WHERE user_id = $1 AND status = 'REJECTED'`,
+        [id]
+      )
+      const priorDeclineCount = parseInt(declineRows[0].count, 10)
+      if (priorDeclineCount + 1 >= 3) {
+        setFields.push(`commitment_locked = true`)
+      }
     } else if (review_status === 'On Review') {
       // Reset: clear previous admin comment
       setFields.push(`review_reason = NULL`)
@@ -188,6 +198,15 @@ router.patch('/progress-update/:id', async (req, res) => {
     console.error(e)
     res.status(500).json({ message: 'Server error' })
   }
+})
+
+// Admin unlocks a user's commitment resubmission after 3 declines
+router.patch('/users/:id/unlock-commitment', async (req, res) => {
+  const { id } = req.params
+  try {
+    await pool.query(`UPDATE users SET commitment_locked = false, updated_at = NOW() WHERE id = $1`, [id])
+    res.json({ message: 'Resubmission unlocked' })
+  } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
 })
 
 // Admin updates user visibility only

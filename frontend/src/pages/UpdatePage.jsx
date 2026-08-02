@@ -125,7 +125,8 @@ export default function UpdatePage() {
   const isOnReview = reviewStatus === 'On Review'
   const isRejected = reviewStatus === 'Rejected'
   const hasNoCommitment = !form.initial_commitment?.trim()
-  const canSubmitCommitment = hasNoCommitment || isRejected
+  const isLocked = !!form.commitment_locked
+  const canSubmitCommitment = (hasNoCommitment || isRejected) && !isLocked
   const hasProof = !!file
 
   const progressPending = isAccepted && form.progress_status === 'On Review'
@@ -175,8 +176,22 @@ export default function UpdatePage() {
 
           {/* --- STATUS BANNERS --- */}
 
+          {/* Commitment locked — max resubmissions reached */}
+          {isRejected && isLocked && (
+            <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl p-5 flex items-start gap-4 shadow-sm animate-in slide-in-from-top-4 duration-500">
+              <div className="bg-slate-200 border-2 border-slate-300 text-slate-600 w-10 h-10 rounded-xl flex flex-shrink-0 items-center justify-center shadow-inner"><IconLock className="w-5 h-5" /></div>
+              <div>
+                <h3 className="font-extrabold text-slate-800">Resubmission Locked</h3>
+                <p className="text-slate-600 text-sm mt-1 font-medium leading-relaxed">
+                  {form.review_reason && <><span className="font-black">Last Admin Comment:</span> {form.review_reason}<br /></>}
+                  You've reached the maximum of 3 declined submissions. Please contact your Admin to unlock resubmission.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Commitment declined banner — shows admin comment */}
-          {isRejected && form.review_reason && (
+          {isRejected && !isLocked && form.review_reason && (
             <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-5 flex items-start gap-4 shadow-sm animate-in slide-in-from-top-4 duration-500">
               <div className="bg-red-100 border-2 border-red-300 text-red-700 w-10 h-10 rounded-xl flex flex-shrink-0 items-center justify-center shadow-inner"><IconWarning className="w-5 h-5" /></div>
               <div>

@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   status       VARCHAR(20),                        -- In Progress | Achieved | NULL (only settable once review_status = 'Accepted')
   progress_status  VARCHAR(20),                    -- On Review | Rejected | NULL — gates each PROGRESS UPDATE (separate from review_status)
   progress_review_reason TEXT,                     -- free-text Admin comment when a progress update is declined
+  commitment_locked BOOLEAN DEFAULT FALSE,         -- true after 3 declined commitment submissions; Admin can unlock
   created_at   TIMESTAMPTZ   DEFAULT NOW(),
   updated_at   TIMESTAMPTZ   DEFAULT NOW()
 );

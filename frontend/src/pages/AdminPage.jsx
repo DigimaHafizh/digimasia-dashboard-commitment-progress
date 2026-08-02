@@ -8,7 +8,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import DeclineModal from '../components/DeclineModal'
 import AdminGuideline from '../components/AdminGuideline'
 import { getEffectiveStatus, getStatusPriority } from '../utils/status'
-import { IconWave, IconDownload, IconHistory, IconDocument, IconCheck, IconWarning, IconClose, IconTrash, IconPlus, IconUsers } from '../components/icons'
+import { IconWave, IconDownload, IconHistory, IconDocument, IconCheck, IconWarning, IconClose, IconTrash, IconPlus, IconUsers, IconLock } from '../components/icons'
 
 const STATUSES = [
   { value: 'All', label: 'All' },
@@ -111,6 +111,18 @@ export default function AdminPage() {
       setApproveTarget(null)
     } catch (e) {
       alert(e.response?.data?.message || 'Failed to update review status.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleUnlockCommitment = async (id) => {
+    setSaving(true)
+    try {
+      await api.patch(`/admin/users/${id}/unlock-commitment`)
+      fetchData()
+    } catch (e) {
+      alert(e.response?.data?.message || 'Failed to unlock resubmission.')
     } finally {
       setSaving(false)
     }
@@ -241,10 +253,15 @@ export default function AdminPage() {
                             : <span className="text-slate-300 not-italic">No commitment submitted yet.</span>
                           }
                         </p>
-                        <div>
+                        <div className="flex items-center gap-2">
                           <button onClick={() => setHistoryUserId(row.id)} className="text-[10px] font-black text-brand bg-brand/5 border border-brand/10 px-2.5 py-1.5 rounded-lg hover:bg-brand/10 transition-all flex items-center gap-1.5 w-fit">
                             <IconHistory className="w-3.5 h-3.5" /> History
                           </button>
+                          {row.commitment_locked && (
+                            <span className="text-[9px] font-black text-slate-500 bg-slate-100 border border-slate-200 px-2 py-1.5 rounded-lg flex items-center gap-1 w-fit uppercase tracking-widest">
+                              <IconLock className="w-3 h-3" /> Locked
+                            </span>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -431,6 +448,18 @@ export default function AdminPage() {
               </div>
               <button onClick={() => setHistoryUserId(null)} className="text-gray-400 hover:text-gray-600 transition-colors"><IconClose className="w-4 h-4" /></button>
             </div>
+            {data.find(d => d.id === historyUserId)?.commitment_locked && (
+              <div className="px-6 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-3">
+                <p className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5"><IconLock className="w-3.5 h-3.5" /> Resubmission locked after 3 declines.</p>
+                <button
+                  onClick={() => handleUnlockCommitment(historyUserId)}
+                  disabled={saving}
+                  className="text-[10px] font-black uppercase tracking-widest text-brand bg-brand/5 border border-brand/10 px-3 py-1.5 rounded-lg hover:bg-brand/10 transition-all disabled:opacity-50"
+                >
+                  {saving ? 'Unlocking...' : 'Unlock Resubmission'}
+                </button>
+              </div>
+            )}
             <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6">
               {loadingHistory ? (
                 <div className="text-center py-10 text-slate-400 font-semibold text-xs">Loading history...</div>

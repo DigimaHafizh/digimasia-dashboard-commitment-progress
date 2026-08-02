@@ -68,13 +68,18 @@ router.patch('/me', authMiddleware, upload.single('attachment'), async (req, res
   const { status, challenges, measurable_impact, initial_commitment } = req.body
   try {
     const { rows: currentRows } = await pool.query(
-      'SELECT status, initial_commitment, review_status, progress_status FROM users WHERE id = $1',
+      'SELECT status, initial_commitment, review_status, progress_status, commitment_locked FROM users WHERE id = $1',
       [req.user.id]
     )
     const cur = currentRows[0]
 
     // --- NEW COMMITMENT SUBMISSION (first time or after Rejection) ---
     if (initial_commitment !== undefined && initial_commitment.trim()) {
+      if (cur.commitment_locked) {
+        return res.status(403).json({
+          message: "You've reached the maximum number of resubmissions (3). Please contact your Admin."
+        })
+      }
       // Only allow submission when: no commitment exists yet OR status is Rejected
       const canSubmitCommitment = !cur.initial_commitment?.trim() || cur.review_status === 'Rejected'
       if (!canSubmitCommitment) {

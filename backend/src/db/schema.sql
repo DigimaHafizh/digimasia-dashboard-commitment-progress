@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
   measurable_impact  TEXT,
   challenges         TEXT,                        -- private, admin-only
   status       VARCHAR(20),                        -- In Progress | Achieved | NULL (only settable once review_status = 'Accepted')
+  attachment_url TEXT,                              -- legacy/unused column, kept only to match existing production data
   progress_status  VARCHAR(20),                    -- On Review | Rejected | NULL — gates each PROGRESS UPDATE (separate from review_status)
   progress_review_reason TEXT,                     -- free-text Admin comment when a progress update is declined
   commitment_locked BOOLEAN DEFAULT FALSE,         -- true after 3 declined commitment submissions; Admin can unlock

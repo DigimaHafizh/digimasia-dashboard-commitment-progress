@@ -1,4 +1,4 @@
-﻿import { Router } from 'express'
+import { Router } from 'express'
 import { pool } from '../db/pool.js'
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js'
 import * as XLSX from 'xlsx'
@@ -20,7 +20,7 @@ router.get('/commitments', async (req, res) => {
         WHERE user_id = u.id AND attachment_url IS NOT NULL
         ORDER BY created_at DESC
         LIMIT 1
-      ) pl ON true
+      ) AS pl ON true
       WHERE u.is_admin = false
       ORDER BY u.is_hidden ASC, u.name ASC
     `)
@@ -34,7 +34,7 @@ router.patch('/commitments/:id', async (req, res) => {
   const { is_hidden } = req.body
   try {
     if (is_hidden === undefined) return res.status(400).json({ message: 'is_hidden is required' })
-    await pool.query(`UPDATE users SET is_hidden = $1, updated_at = NOW() WHERE id = $2`, [is_hidden, id])
+    await pool.query(`UPDATE users SET is_hidden = ?, updated_at = NOW() WHERE id = ?`, [is_hidden, id])
     res.json({ message: 'Visibility updated' })
   } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
 })
@@ -62,7 +62,7 @@ router.get('/commitments/:id/history', async (req, res) => {
     const { rows } = await pool.query(`
       SELECT id, status, commitment_text, measurable_impact, challenges, attachment_url, created_at, updated_by_name, updated_by_role
       FROM progress_log
-      WHERE user_id = $1
+      WHERE user_id = ?
       ORDER BY created_at DESC
     `, [id])
     res.json(rows)
@@ -85,10 +85,10 @@ router.patch('/progress/:id', async (req, res) => {
   }
 
   try {
-    const { rows: uRows } = await pool.query('SELECT initial_commitment FROM users WHERE id = $1', [id])
+    const { rows: uRows } = await pool.query('SELECT initial_commitment FROM users WHERE id = ?', [id])
     const currentCommitment = uRows[0]?.initial_commitment
 
-    const setFields = [`review_status = $1`]
+    const setFields = [`review_status = ?`]
     const vals = [review_status]
 
     if (review_status === 'Accepted') {
@@ -96,7 +96,7 @@ router.patch('/progress/:id', async (req, res) => {
       setFields.push(`review_reason = NULL`)
     } else if (review_status === 'Rejected') {
       // Store admin comment so user can see it in their form
-      setFields.push(`review_reason = $${vals.length + 1}`)
+      setFields.push(`review_reason = ?`)
       vals.push(review_reason.trim())
       // Clear commitment and progress status in active table
       setFields.push(`initial_commitment = NULL`)
@@ -104,7 +104,7 @@ router.patch('/progress/:id', async (req, res) => {
 
       // Lock resubmission after the 3rd decline; only an Admin can unlock it again
       const { rows: declineRows } = await pool.query(
-        `SELECT COUNT(*) FROM progress_log WHERE user_id = $1 AND status = 'REJECTED'`,
+        `SELECT COUNT(*) as count FROM progress_log WHERE user_id = ? AND status = 'REJECTED'`,
         [id]
       )
       const priorDeclineCount = parseInt(declineRows[0].count, 10)
@@ -118,8 +118,7 @@ router.patch('/progress/:id', async (req, res) => {
 
     setFields.push(`updated_at = NOW()`)
     vals.push(id)
-    const idParamIndex = vals.length
-    await pool.query(`UPDATE users SET ${setFields.join(', ')} WHERE id = $${idParamIndex}`, vals)
+    await pool.query(`UPDATE users SET ${setFields.join(', ')} WHERE id = ?`, vals)
 
     // Append to progress log for audit trail
     const logStatus = review_status === 'Accepted' ? 'APPROVED' : review_status === 'Rejected' ? 'REJECTED' : 'ON_REVIEW'
@@ -132,7 +131,7 @@ router.patch('/progress/:id', async (req, res) => {
     await pool.query(
       `INSERT INTO progress_log
        (user_id, status, measurable_impact, challenges, updated_by_name, updated_by_role, commitment_text)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+       VALUES (?,?,?,?,?,?,?)`,
       [id, logStatus, logMessage, null, req.user.name, 'Admin', currentCommitment || '-']
     )
 
@@ -155,7 +154,7 @@ router.patch('/progress-update/:id', async (req, res) => {
   }
 
   try {
-    const { rows: uRows } = await pool.query('SELECT initial_commitment, status, measurable_impact FROM users WHERE id = $1', [id])
+    const { rows: uRows } = await pool.query('SELECT initial_commitment, status, measurable_impact FROM users WHERE id = ?', [id])
     const cur = uRows[0]
 
     const setFields = []
@@ -167,7 +166,7 @@ router.patch('/progress-update/:id', async (req, res) => {
     } else if (progress_status === 'Rejected') {
       // Clear the proposed progress values; user must redo the update
       setFields.push(`progress_status = 'Rejected'`)
-      setFields.push(`progress_review_reason = $${vals.length + 1}`)
+      setFields.push(`progress_review_reason = ?`)
       vals.push(review_reason.trim())
       setFields.push(`status = NULL`, `measurable_impact = NULL`, `challenges = NULL`)
     } else if (progress_status === 'On Review') {
@@ -176,8 +175,7 @@ router.patch('/progress-update/:id', async (req, res) => {
 
     setFields.push(`updated_at = NOW()`)
     vals.push(id)
-    const idParamIndex = vals.length
-    await pool.query(`UPDATE users SET ${setFields.join(', ')} WHERE id = $${idParamIndex}`, vals)
+    await pool.query(`UPDATE users SET ${setFields.join(', ')} WHERE id = ?`, vals)
 
     const logStatus = progress_status === 'Accepted' ? 'PROGRESS_APPROVED' : progress_status === 'Rejected' ? 'PROGRESS_REJECTED' : 'ON_REVIEW'
     const logMessage = progress_status === 'Rejected'
@@ -189,7 +187,7 @@ router.patch('/progress-update/:id', async (req, res) => {
     await pool.query(
       `INSERT INTO progress_log
        (user_id, status, measurable_impact, challenges, updated_by_name, updated_by_role, commitment_text)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+       VALUES (?,?,?,?,?,?,?)`,
       [id, logStatus, logMessage, null, req.user.name, 'Admin', cur.initial_commitment || '-']
     )
 
@@ -204,7 +202,7 @@ router.patch('/progress-update/:id', async (req, res) => {
 router.patch('/users/:id/unlock-commitment', async (req, res) => {
   const { id } = req.params
   try {
-    await pool.query(`UPDATE users SET commitment_locked = false, updated_at = NOW() WHERE id = $1`, [id])
+    await pool.query(`UPDATE users SET commitment_locked = false, updated_at = NOW() WHERE id = ?`, [id])
     res.json({ message: 'Resubmission unlocked' })
   } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
 })
@@ -215,7 +213,7 @@ router.patch('/users/:id', async (req, res) => {
   const { is_hidden } = req.body
   try {
     if (is_hidden === undefined) return res.status(400).json({ message: 'No fields to update' })
-    await pool.query(`UPDATE users SET is_hidden = $1, updated_at = NOW() WHERE id = $2`, [is_hidden, id])
+    await pool.query(`UPDATE users SET is_hidden = ?, updated_at = NOW() WHERE id = ?`, [is_hidden, id])
     res.json({ message: 'User updated' })
   } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
 })
@@ -227,14 +225,14 @@ router.post('/users', async (req, res) => {
     if (!name?.trim() || !pin || !/^\d{4}$/.test(pin)) {
       return res.status(400).json({ message: 'Name and a 4-digit PIN are required.' })
     }
-    const { rows: existing } = await pool.query('SELECT id FROM users WHERE pin = $1', [pin])
+    const { rows: existing } = await pool.query('SELECT id FROM users WHERE pin = ?', [pin])
     if (existing.length) return res.status(409).json({ message: 'That PIN is already in use.' })
 
-    const { rows } = await pool.query(
-      `INSERT INTO users (name, pin, heart_value, is_admin, is_hidden) VALUES ($1, $2, $3, false, false) RETURNING id`,
+    const { insertId } = await pool.query(
+      `INSERT INTO users (name, pin, heart_value, is_admin, is_hidden) VALUES (?, ?, ?, false, false)`,
       [name.trim(), pin, heart_value || null]
     )
-    res.status(201).json({ message: 'User added successfully', id: rows[0].id })
+    res.status(201).json({ message: 'User added successfully', id: insertId })
   } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
 })
 
@@ -242,11 +240,11 @@ router.post('/users', async (req, res) => {
 router.delete('/users/:id', async (req, res) => {
   const { id } = req.params
   try {
-    const { rows } = await pool.query('SELECT is_admin FROM users WHERE id = $1', [id])
+    const { rows } = await pool.query('SELECT is_admin FROM users WHERE id = ?', [id])
     if (!rows.length) return res.status(404).json({ message: 'User not found' })
     if (rows[0].is_admin) return res.status(403).json({ message: 'Cannot delete an Admin account.' })
 
-    await pool.query('DELETE FROM users WHERE id = $1', [id])
+    await pool.query('DELETE FROM users WHERE id = ?', [id])
     res.json({ message: 'User deleted successfully' })
   } catch (e) { console.error(e); res.status(500).json({ message: 'Server error' }) }
 })

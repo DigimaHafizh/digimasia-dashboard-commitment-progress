@@ -8,7 +8,7 @@ router.post('/login', async (req, res) => {
   const { pin } = req.body
   if (!pin || pin.length !== 4) return res.status(400).json({ message: 'PIN must be 4 digits.' })
   try {
-    const { rows } = await pool.query('SELECT * FROM users WHERE pin = $1', [pin])
+    const { rows } = await pool.query('SELECT * FROM users WHERE pin = ?', [pin])
     if (!rows.length) return res.status(401).json({ message: 'Invalid PIN. Please try again.' })
     const user = rows[0]
     const token = jwt.sign({ id: user.id, name: user.name, is_admin: user.is_admin }, process.env.JWT_SECRET, { expiresIn: '8h' })

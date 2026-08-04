@@ -4,9 +4,10 @@ This app is three independent pieces that can live on the same server or be spli
 
 1. **Frontend** — static build (`frontend/dist/`) served by any web server
 2. **Backend** — a long-running Node.js process (Express API)
-3. **Database** — PostgreSQL, currently on [Neon](https://neon.tech) (a managed/serverless
-   Postgres provider). Can stay there or move to a Postgres instance on the company server —
-   nothing in the code assumes Neon specifically, it's just a connection string.
+3. **Database** — MySQL 8.0.14+ (the version floor is set by `LEFT JOIN LATERAL`, used in
+   the admin commitments query). Can be hosted anywhere — a managed MySQL service or an
+   instance on the company server — nothing in the code assumes a specific provider, it's
+   just a connection string.
 
 The instructions below assume a Linux server with Nginx as the reverse proxy, since that's
 the most common setup — adjust to your actual server's OS/stack as needed.
@@ -16,7 +17,7 @@ the most common setup — adjust to your actual server's OS/stack as needed.
 ## 1. Prerequisites on the server
 
 - Node.js 18+ and npm
-- PostgreSQL 14+ (only if moving the DB in-house; skip if staying on Neon)
+- MySQL 8.0.14+ (required for `LEFT JOIN LATERAL` support used in the admin commitments query)
 - Nginx (or another reverse proxy / static file server)
 - A process manager for the backend: [PM2](https://pm2.keymetrics.io/) (`npm i -g pm2`) or a
   systemd service — either works, examples below use PM2
@@ -27,22 +28,15 @@ the most common setup — adjust to your actual server's OS/stack as needed.
 
 ## 2. Database
 
-If staying on Neon: nothing to do, just use the existing `DATABASE_URL`.
-
-If moving to an in-house Postgres:
 ```bash
-createdb commitment_dashboard
-psql -d commitment_dashboard -f backend/src/db/schema.sql
+mysql -u root -p -e "CREATE DATABASE commitment_dashboard"
+mysql -u root -p commitment_dashboard < backend/src/db/schema.sql
 ```
-Then update `DATABASE_URL` in the backend `.env` to point at the new instance, and set
-`sslmode` appropriately (see `backend/src/db/pool.js` — it disables SSL only for
-`localhost` URLs).
+Then set `DATABASE_URL` in the backend `.env` to point at the instance, e.g.
+`mysql://user:password@host:3306/commitment_dashboard`.
 
-> `schema.sql` reflects the current intended shape of the `users`/`progress_log` tables,
-> but the live database has been migrated incrementally with one-off scripts (see
-> `backend/src/scripts/README.md`). If bootstrapping a **brand new** database, `schema.sql`
-> alone is sufficient — it already includes the `progress_status` /
-> `progress_review_reason` columns from those migrations.
+`schema.sql` is the single source of truth for the `users`/`progress_log` tables — it's
+sufficient on its own to bootstrap a brand-new database, no follow-up scripts needed.
 
 ## 3. Adding employees
 
@@ -130,8 +124,9 @@ server {
 ## 7. Backups
 
 Two things need backing up, independently of each other:
-1. **Database** — commitments, statuses, full `progress_log` audit trail. If on Neon, it
-   has its own backup/point-in-time-restore; if self-hosted, set up `pg_dump` on a schedule.
+1. **Database** — commitments, statuses, full `progress_log` audit trail. If using a managed
+   MySQL provider, check its built-in backup/point-in-time-restore; if self-hosted, set up
+   `mysqldump` on a schedule.
 2. **`backend/uploads/`** — the actual evidence files users attach. These are referenced by
    URL from `progress_log.attachment_url` but live only on disk; losing this folder loses
    all evidence without losing the log entries that point to it.

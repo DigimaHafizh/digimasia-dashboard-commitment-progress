@@ -10,7 +10,7 @@ Internal dashboard for tracking and measuring Digimers' personal HEART commitmen
 |-----------|--------------------------------------------------|
 | Frontend  | React + Vite + Tailwind CSS, Recharts, ExcelJS   |
 | Backend   | Node.js + Express.js, JWT auth, Multer uploads   |
-| Database  | PostgreSQL (currently hosted on [Neon](https://neon.tech)) |
+| Database  | MySQL 8.0.14+ (LATERAL JOIN support required) |
 | Deploy    | Self-hosted on a company server (target TBD — see [DEPLOYMENT.md](./DEPLOYMENT.md)) |
 
 ---
@@ -18,17 +18,17 @@ Internal dashboard for tracking and measuring Digimers' personal HEART commitmen
 ## Quick Start (local development)
 
 **Prerequisites:** Node.js 18+, GitHub access to this repo (it's private — ask the repo
-owner to add you as a collaborator), and a PostgreSQL database you can connect to — either
-install Postgres locally, or ask a teammate for a connection string to a shared dev
-database (e.g. a free [Neon](https://neon.tech) project).
+owner to add you as a collaborator), and a MySQL 8.0.14+ database you can connect to —
+either install MySQL locally, or ask a teammate for a connection string to a shared dev
+database.
 
 ### 1. Clone & database
 ```bash
 git clone https://github.com/DigimaHafizh/digimasia-dashboard-commitment-progress.git
 cd digimasia-dashboard-commitment-progress
 
-# Point this at your own Postgres instance, then create the schema:
-psql "<your-database-url>" -f backend/src/db/schema.sql
+# Point this at your own MySQL instance, then create the schema:
+mysql -u <user> -p <your-database-name> < backend/src/db/schema.sql
 ```
 
 ### 2. Backend
@@ -99,7 +99,6 @@ backend/
     routes/          # auth, commitments (user-facing), admin
     middleware/       # JWT auth + admin guard
     db/               # pool, schema.sql
-    scripts/          # applied DB migrations + diagnostics — see scripts/README.md
     seed-data/        # gitignored — raw employee/commitment spreadsheets, if any
   uploads/            # gitignored — user-uploaded evidence files (served at /api/uploads)
 frontend/

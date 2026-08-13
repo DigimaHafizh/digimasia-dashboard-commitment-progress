@@ -34,8 +34,9 @@ mysql -u <user> -p <your-database-name> < backend/src/db/schema.sql
 ### 2. Backend
 ```bash
 cd backend
-cp .env.example .env       # Fill in DATABASE_URL (from step 1), JWT_SECRET (any string
-                            # locally), and ADMIN_PIN (a 4-digit PIN for your own admin login)
+cp .env.example .env       # Fill in DB_HOST/DB_PORT/DB_DATABASE/DB_USERNAME/DB_PASSWORD
+                            # (from step 1), JWT_SECRET (any string locally), and ADMIN_PIN
+                            # (a 4-digit PIN for your own admin login)
 npm install
 npm run dev                # Starts on http://localhost:4000
 ```
@@ -132,7 +133,8 @@ frontend/
 
 - `backend/uploads/` and `backend/seed-data/` are **gitignored** — they hold real
   employee evidence files and PIN/commitment spreadsheets and must never be committed.
-- `.env` files (`DATABASE_URL`, `JWT_SECRET`, `ADMIN_PIN`) are gitignored; only
+- `.env` files (`DB_HOST`/`DB_PORT`/`DB_DATABASE`/`DB_USERNAME`/`DB_PASSWORD`, `JWT_SECRET`,
+  `ADMIN_PIN`) are gitignored; only
   `.env.example` is tracked.
 - Login has **no rate limiting** by design, since this app was built for internal
   office-network use. Before deploying anywhere reachable outside the office LAN (VPN,

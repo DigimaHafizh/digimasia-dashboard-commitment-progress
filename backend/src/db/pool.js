@@ -3,7 +3,11 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 const rawPool = mysql.createPool({
-    uri: process.env.DATABASE_URL,
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    database: process.env.DB_DATABASE,
+    user: process.env.DB_USERNAME,
+    password: process.env.DB_PASSWORD,
     waitForConnections: true,
     connectionLimit: 10,
     // MySQL stores BOOLEAN as TINYINT(1); cast it back to a real JS boolean

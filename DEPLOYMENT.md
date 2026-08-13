@@ -32,8 +32,8 @@ the most common setup — adjust to your actual server's OS/stack as needed.
 mysql -u root -p -e "CREATE DATABASE commitment_dashboard"
 mysql -u root -p commitment_dashboard < backend/src/db/schema.sql
 ```
-Then set `DATABASE_URL` in the backend `.env` to point at the instance, e.g.
-`mysql://user:password@host:3306/commitment_dashboard`.
+Then set `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` in the
+backend `.env` to point at the instance.
 
 `schema.sql` is the single source of truth for the `users`/`progress_log` tables — it's
 sufficient on its own to bootstrap a brand-new database, no follow-up scripts needed.
@@ -56,8 +56,9 @@ Create the Admin account the same way, with `is_admin = true`.
 ```bash
 cd backend
 cp .env.example .env
-# Fill in: DATABASE_URL, JWT_SECRET (long random string), ADMIN_PIN, PORT,
-# and FRONTEND_URL (the real production URL of the frontend — required for CORS)
+# Fill in: DB_HOST/DB_PORT/DB_DATABASE/DB_USERNAME/DB_PASSWORD, JWT_SECRET (long
+# random string), ADMIN_PIN, PORT, and FRONTEND_URL (the real production URL of
+# the frontend — required for CORS)
 npm install --omit=dev
 pm2 start src/index.js --name commitment-backend
 pm2 save
